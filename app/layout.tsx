@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Instituto Muraro | Gestão clínica',
-  description: 'Sistema de gestão clínica do Instituto Muraro.',
+  title: 'Instituto Muraro | Gestão em Fisioterapia',
+  description: 'Demonstração de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -26,10 +26,9 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
+  colorScheme: 'light',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
+    { media: '(prefers-color-scheme: light)', color: '#142b49' },
   ],
 }
 
@@ -39,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body className="antialiased">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
