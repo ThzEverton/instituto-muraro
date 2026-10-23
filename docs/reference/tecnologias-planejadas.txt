@@ -1,0 +1,14 @@
+Stack atualizada — sem Docker
+Camada	Tecnologia
+Arquitetura	MVC + Service Layer
+Frontend	React + Vite + TypeScript
+Interface	Tailwind CSS + shadcn/ui
+Backend	Node.js + Fastify
+Banco	PostgreSQL
+ORM	Prisma
+Validações	Zod
+Autenticação	JWT + permissões
+Hospedagem	Oracle Cloud Compute
+Gerenciamento do backend	PM2
+HTTPS e servidor web	Caddy
+Backup	Automático e externo
