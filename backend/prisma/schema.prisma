@@ -1,0 +1,21 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum Role { ADMIN RECEPTION PROFESSIONAL }
+enum RecordStatus { DRAFT FINALIZED }
+enum ChargeStatus { PENDING PARTIAL PAID REVERSED }
+model User { id String @id @default(cuid()) name String email String @unique role Role active Boolean @default(true) createdAt DateTime @default(now()) auditLogs AuditLog[] }
+model Patient { id String @id @default(cuid()) name String phone String? active Boolean @default(true) createdAt DateTime @default(now()) appointments Appointment[] records MedicalRecord[] charges Charge[] }
+model Professional { id String @id @default(cuid()) name String specialty String active Boolean @default(true) appointments Appointment[] blocks CalendarBlock[] }
+model Service { id String @id @default(cuid()) name String durationMin Int priceCents Int active Boolean @default(true) appointments Appointment[] }
+model Appointment { id String @id @default(cuid()) patientId String professionalId String serviceId String startsAt DateTime endsAt DateTime status String @default("SCHEDULED") patient Patient @relation(fields:[patientId], references:[id]) professional Professional @relation(fields:[professionalId], references:[id]) service Service @relation(fields:[serviceId], references:[id]) }
+model CalendarBlock { id String @id @default(cuid()) professionalId String startsAt DateTime endsAt DateTime kind String recurring Boolean @default(false) professional Professional @relation(fields:[professionalId], references:[id]) }
+model AnamnesisTemplate { id String @id @default(cuid()) title String version Int status String @default("DRAFT") questions Json links AnamnesisLink[] }
+model AnamnesisLink { id String @id @default(cuid()) templateId String appointmentId String tokenHash String @unique expiresAt DateTime revokedAt DateTime? template AnamnesisTemplate @relation(fields:[templateId], references:[id]) }
+model AnamnesisResponse { id String @id @default(cuid()) linkId String answers Json submittedAt DateTime @default(now()) }
+model MedicalRecord { id String @id @default(cuid()) patientId String status RecordStatus @default(DRAFT) createdAt DateTime @default(now()) entries RecordEntry[] patient Patient @relation(fields:[patientId], references:[id]) }
+model RecordEntry { id String @id @default(cuid()) recordId String authorId String text String createdAt DateTime @default(now()) record MedicalRecord @relation(fields:[recordId], references:[id]) }
+model Charge { id String @id @default(cuid()) patientId String description String amountCents Int dueAt DateTime status ChargeStatus @default(PENDING) payments Payment[] patient Patient @relation(fields:[patientId], references:[id]) }
+model Payment { id String @id @default(cuid()) chargeId String amountCents Int paidAt DateTime @default(now()) reversedAt DateTime? charge Charge @relation(fields:[chargeId], references:[id]) }
+model Expense { id String @id @default(cuid()) description String amountCents Int occurredAt DateTime }
+model AuditLog { id String @id @default(cuid()) userId String action String entity String entityId String createdAt DateTime @default(now()) user User @relation(fields:[userId], references:[id]) }
