@@ -1,0 +1,1395 @@
+# INSTITUTO MURARO
+## Contrato de API REST — Versão 1.0
+
+**Projeto:** Sistema de Gestão Clínica  
+**Desenvolvimento:** ETH Tecnologia  
+**Arquitetura:** MVC + Service Layer  
+**Padrão de documentação:** OpenAPI 3.1 / Swagger  
+**Status:** Especificação inicial para frontend e backend
+
+---
+
+# 1. Regras gerais da API
+
+### Endereços
+
+**Desenvolvimento:**
+`http://localhost:3333/api/v1`
+
+**Produção:**
+`https://sistema.institutomuraro.com.br/api/v1`
+
+O domínio de produção é ilustrativo e será configurado posteriormente.
+
+**Documentação Swagger:**
+`http://localhost:3333/docs`
+
+### Padrões obrigatórios
+
+- Comunicação por HTTPS em produção.
+- Requisições e respostas JSON, exceto upload e download de arquivos.
+- Endpoints organizados por recurso.
+- IDs no formato UUID.
+- Datas de calendário no formato `YYYY-MM-DD`.
+- Data e hora em ISO 8601, com fuso horário.
+- Datas armazenadas em UTC.
+- Fuso horário padrão: `America/Sao_Paulo`.
+- Valores monetários representados em centavos, usando números inteiros.
+- Paginação nas listagens.
+- Respostas de erro padronizadas.
+- Autorização no backend, independentemente das permissões exibidas no frontend.
+
+### Resposta de listagem
+
+```json
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+```
+
+### Resposta individual
+
+```json
+{
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+### Resposta de erro
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Os dados informados são inválidos.",
+    "details": [
+      {
+        "field": "fullName",
+        "message": "Campo obrigatório."
+      }
+    ],
+    "requestId": "req_123"
+  }
+}
+```
+
+**Códigos HTTP:**
+
+- `200` — Consulta ou atualização realizada.
+- `201` — Recurso criado.
+- `204` — Operação concluída sem conteúdo.
+- `400` — Requisição inválida.
+- `401` — Usuário não autenticado.
+- `403` — Acesso não autorizado.
+- `404` — Recurso não encontrado.
+- `409` — Conflito de dados ou de horários.
+- `422` — Regra de negócio ou validação não atendida.
+- `429` — Limite de requisições excedido.
+- `500` — Erro interno.
+
+Os erros devem possuir códigos estáveis, para que o frontend consiga tratá-los e apresentar mensagens adequadas.
+
+---
+
+# 2. API de autenticação
+
+**Prefixo:** `/auth`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| POST | `/auth/login` | Realizar login |
+| POST | `/auth/refresh` | Renovar sessão |
+| POST | `/auth/logout` | Encerrar sessão |
+| GET | `/auth/me` | Obter usuário autenticado |
+| PATCH | `/auth/password` | Alterar senha |
+
+### POST /auth/login
+
+**Request:**
+
+```json
+{
+  "email": "admin@exemplo.com",
+  "password": "senha-de-exemplo"
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "user": {
+      "id": "uuid",
+      "name": "Administrador",
+      "email": "admin@exemplo.com",
+      "role": "ADMIN",
+      "professionalId": null,
+      "active": true
+    }
+  }
+}
+```
+
+O backend estabelecerá a sessão por cookies seguros, HttpOnly e SameSite, com estratégia de renovação e proteção contra CSRF. Tokens de acesso e renovação não devem ser armazenados em `localStorage`.
+
+### Perfis do sistema
+
+```typescript
+type UserRole =
+  | "ADMIN"
+  | "RECEPTION"
+  | "PROFESSIONAL";
+```
+
+**Regras:**
+- Não haverá cadastro público de usuários.
+- Somente administradores poderão cadastrar colaboradores.
+- As permissões serão verificadas em cada requisição.
+- Um profissional não poderá consultar prontuários de outros pacientes sem autorização.
+- O administrador não terá automaticamente acesso irrestrito aos registros clínicos.
+
+---
+
+# 3. API de usuários
+
+**Prefixo:** `/users`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/users` | Listar usuários |
+| POST | `/users` | Cadastrar usuário |
+| GET | `/users/:id` | Consultar usuário |
+| PATCH | `/users/:id` | Atualizar usuário |
+| POST | `/users/:id/deactivate` | Desativar acesso |
+| POST | `/users/:id/activate` | Reativar acesso |
+
+### Modelo de usuário
+
+```json
+{
+  "id": "uuid",
+  "name": "Ana Oliveira",
+  "email": "ana@exemplo.com",
+  "role": "PROFESSIONAL",
+  "professionalId": "uuid",
+  "active": true,
+  "createdAt": "2026-10-23T13:00:00Z"
+}
+```
+
+A vinculação com `professionalId` será obrigatória para usuários com perfil profissional.
+
+Senhas não serão devolvidas pela API. O cadastro utilizará um fluxo seguro de definição de senha.
+
+**Acesso:** administrador, exceto `/auth/me` e a alteração da própria senha.
+
+---
+
+# 4. API de profissionais
+
+**Prefixo:** `/professionals`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/professionals` | Listar profissionais |
+| POST | `/professionals` | Cadastrar profissional |
+| GET | `/professionals/:id` | Consultar profissional |
+| PATCH | `/professionals/:id` | Atualizar cadastro |
+| GET | `/professionals/:id/schedule` | Consultar horários de trabalho |
+| PUT | `/professionals/:id/schedule` | Configurar horários |
+| GET | `/professionals/:id/blocks` | Consultar bloqueios |
+| POST | `/professionals/:id/blocks` | Criar bloqueio |
+| DELETE | `/professionals/:id/blocks/:blockId` | Remover bloqueio |
+
+### Modelo de profissional
+
+```json
+{
+  "id": "uuid",
+  "name": "Dra. Ana Oliveira",
+  "specialty": "Psicologia",
+  "registrationCouncil": "CRP",
+  "registrationNumber": "00/00000",
+  "phoneE164": "+5518999999999",
+  "color": "#8B5CF6",
+  "active": true
+}
+```
+
+### Modelo de disponibilidade semanal
+
+```json
+{
+  "professionalId": "uuid",
+  "timezone": "America/Sao_Paulo",
+  "weeklySchedule": [
+    {
+      "dayOfWeek": 1,
+      "periods": [
+        {
+          "start": "08:00",
+          "end": "12:00"
+        },
+        {
+          "start": "13:00",
+          "end": "17:00"
+        }
+      ]
+    }
+  ]
+}
+```
+
+`dayOfWeek`: 0 = domingo, 1 = segunda-feira, até 6 = sábado.
+
+Bloqueios terão início, fim e motivo administrativo opcional.
+
+---
+
+# 5. API de serviços
+
+**Prefixo:** `/services`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/services` | Listar serviços |
+| POST | `/services` | Cadastrar serviço |
+| GET | `/services/:id` | Consultar serviço |
+| PATCH | `/services/:id` | Atualizar ou desativar serviço |
+
+### Modelo de serviço
+
+```json
+{
+  "id": "uuid",
+  "name": "Consulta individual",
+  "description": "Atendimento individual",
+  "durationMinutes": 50,
+  "priceCents": 15000,
+  "professionalIds": ["uuid"],
+  "active": true
+}
+```
+
+**Regra:** O preço será informado em centavos. Por exemplo, `15000` representa R$ 150,00.
+
+Serviços inativos devem permanecer associados aos atendimentos históricos.
+
+---
+
+# 6. API de pacientes
+
+**Prefixo:** `/patients`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/patients` | Listar e pesquisar pacientes |
+| POST | `/patients` | Cadastrar paciente |
+| GET | `/patients/:id` | Consultar cadastro |
+| PATCH | `/patients/:id` | Atualizar cadastro |
+| GET | `/patients/:id/contacts` | Listar responsáveis e contatos |
+| POST | `/patients/:id/contacts` | Adicionar responsável ou contato |
+| PATCH | `/patients/:id/contacts/:contactId` | Atualizar contato |
+| DELETE | `/patients/:id/contacts/:contactId` | Remover vínculo de contato |
+
+### GET /patients
+
+**Query params:**
+
+```text
+?page=1
+&limit=20
+&q=maria
+&active=true
+```
+
+O parâmetro `q` permitirá pesquisar por nome e, conforme autorização, por identificadores cadastrais.
+
+### Modelo de paciente
+
+```json
+{
+  "id": "uuid",
+  "fullName": "Maria Oliveira",
+  "birthDate": "1995-05-20",
+  "cpf": null,
+  "phoneE164": "+5518999999999",
+  "email": "maria@exemplo.com",
+  "address": {
+    "street": "Rua Exemplo",
+    "number": "100",
+    "complement": null,
+    "neighborhood": "Centro",
+    "city": "Presidente Epitácio",
+    "state": "SP",
+    "zipCode": "19470000"
+  },
+  "active": true,
+  "createdAt": "2026-10-23T13:00:00Z"
+}
+```
+
+### Modelo de responsável ou contato
+
+```json
+{
+  "id": "uuid",
+  "patientId": "uuid",
+  "fullName": "João Oliveira",
+  "relationship": "Pai",
+  "phoneE164": "+5518999999999",
+  "isLegalGuardian": true,
+  "isPrimaryContact": true
+}
+```
+
+**Regras:**
+- O cadastro não deverá ser excluído permanentemente pela interface comum.
+- Pacientes poderão ser marcados como inativos.
+- A lista deverá mostrar apenas os campos necessários.
+- Prontuários e anamneses serão acessados por endpoints específicos.
+- Informações de responsáveis legais deverão ter controle adequado, especialmente no atendimento de menores.
+
+---
+
+# 7. API de agendamentos
+
+**Prefixo:** `/appointments`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/appointments` | Listar agendamentos |
+| POST | `/appointments` | Criar agendamento |
+| GET | `/appointments/:id` | Consultar agendamento |
+| PATCH | `/appointments/:id` | Atualizar informações administrativas |
+| GET | `/appointments/availability` | Consultar horários disponíveis |
+| POST | `/appointments/:id/confirm` | Confirmar atendimento |
+| POST | `/appointments/:id/cancel` | Cancelar atendimento |
+| POST | `/appointments/:id/reschedule` | Reagendar |
+| POST | `/appointments/:id/start` | Iniciar atendimento |
+| POST | `/appointments/:id/complete` | Concluir atendimento |
+| POST | `/appointments/:id/no-show` | Registrar ausência |
+| GET | `/appointments/:id/whatsapp-draft` | Preparar mensagem de WhatsApp |
+
+### GET /appointments
+
+**Query params:**
+
+```text
+?from=2026-10-26
+&to=2026-11-01
+&professionalId=uuid
+&patientId=uuid
+&status=CONFIRMED
+&page=1
+&limit=50
+```
+
+O backend aplicará o fuso horário da clínica às consultas por data e verificará as permissões do usuário.
+
+### Modelo de agendamento
+
+```json
+{
+  "id": "uuid",
+  "patientId": "uuid",
+  "professionalId": "uuid",
+  "serviceId": "uuid",
+  "startsAt": "2026-10-26T14:00:00-03:00",
+  "endsAt": "2026-10-26T14:50:00-03:00",
+  "status": "SCHEDULED",
+  "internalNote": "",
+  "patient": {
+    "id": "uuid",
+    "fullName": "Maria Oliveira"
+  },
+  "professional": {
+    "id": "uuid",
+    "name": "Dra. Ana Oliveira"
+  },
+  "service": {
+    "id": "uuid",
+    "name": "Consulta individual"
+  }
+}
+```
+
+### Status dos agendamentos
+
+```typescript
+type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
+```
+
+### POST /appointments
+
+**Request:**
+
+```json
+{
+  "patientId": "uuid",
+  "professionalId": "uuid",
+  "serviceId": "uuid",
+  "startsAt": "2026-10-26T14:00:00-03:00",
+  "internalNote": ""
+}
+```
+
+O backend calculará o horário de término com base na duração do serviço e verificará a disponibilidade.
+
+### GET /appointments/availability
+
+**Query params:**
+
+```text
+?professionalId=uuid
+&serviceId=uuid
+&date=2026-10-26
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "date": "2026-10-26",
+    "professionalId": "uuid",
+    "slots": [
+      {
+        "startsAt": "2026-10-26T08:00:00-03:00",
+        "endsAt": "2026-10-26T08:50:00-03:00"
+      },
+      {
+        "startsAt": "2026-10-26T09:00:00-03:00",
+        "endsAt": "2026-10-26T09:50:00-03:00"
+      }
+    ]
+  }
+}
+```
+
+### Regras de agendamento
+
+- Não permitir sobreposição para o mesmo profissional.
+- Respeitar bloqueios e horários de trabalho.
+- Não permitir agendamento de profissional inativo.
+- Não permitir agendamento em serviço inativo.
+- Evitar alteração direta de status por `PATCH`.
+- Registrar usuário, data e motivo das alterações relevantes.
+- Retornar `409` caso o horário deixe de estar disponível.
+
+### Reagendamento
+
+`POST /appointments/:id/reschedule`
+
+```json
+{
+  "startsAt": "2026-10-27T15:00:00-03:00",
+  "reason": "Solicitação do paciente"
+}
+```
+
+### Cancelamento
+
+`POST /appointments/:id/cancel`
+
+```json
+{
+  "reason": "Paciente solicitou cancelamento"
+}
+```
+
+---
+
+# 8. API de WhatsApp manual
+
+Não haverá integração com a API do WhatsApp.
+
+O backend apenas fornecerá os dados para uma mensagem pré-preenchida.
+
+### GET /appointments/:id/whatsapp-draft
+
+**Query param:**
+
+```text
+?type=CONFIRMATION
+```
+
+Tipos:
+
+```typescript
+type WhatsAppDraftType =
+  | "CONFIRMATION"
+  | "REMINDER"
+  | "CANCELLATION";
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "phoneE164": "+5518999999999",
+    "message": "Olá, Maria! Aqui é do Instituto Muraro. Seu atendimento está agendado para 26/10 às 14h. Podemos confirmar sua presença?"
+  }
+}
+```
+
+O frontend montará o link `https://wa.me/5518999999999?text=...` utilizando `encodeURIComponent`.
+
+O envio dependerá da ação manual do colaborador no WhatsApp.
+
+**Não haverá:**
+- Envio automático.
+- Leitura de mensagens.
+- Sincronização de respostas.
+- Chatbot.
+- Webhook do WhatsApp.
+- Armazenamento de sessão do WhatsApp Web.
+
+---
+
+# 9. API de anamnese digital
+
+Serão utilizados formulários configuráveis com campos predefinidos. Não haverá um construtor avançado de formulários na versão inicial.
+
+### Modelos de formulário
+
+**Prefixo:** `/anamnesis-templates`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/anamnesis-templates` | Listar modelos |
+| POST | `/anamnesis-templates` | Criar modelo |
+| GET | `/anamnesis-templates/:id` | Consultar modelo |
+| PATCH | `/anamnesis-templates/:id` | Atualizar rascunho |
+| POST | `/anamnesis-templates/:id/publish` | Publicar modelo |
+
+### Modelo de formulário
+
+```json
+{
+  "id": "uuid",
+  "title": "Anamnese inicial",
+  "version": 1,
+  "status": "PUBLISHED",
+  "fields": [
+    {
+      "id": "main_complaint",
+      "type": "TEXTAREA",
+      "label": "Qual o principal motivo da consulta?",
+      "required": true
+    },
+    {
+      "id": "medication_use",
+      "type": "RADIO",
+      "label": "Faz uso de medicamentos?",
+      "required": true,
+      "options": [
+        "Sim",
+        "Não"
+      ]
+    }
+  ]
+}
+```
+
+Tipos de campos aceitos:
+
+```typescript
+type FormFieldType =
+  | "TEXT"
+  | "TEXTAREA"
+  | "NUMBER"
+  | "DATE"
+  | "RADIO"
+  | "SELECT"
+  | "CHECKBOX";
+```
+
+Modelos publicados deverão preservar sua versão. Mudanças posteriores que alterem a interpretação de respostas existentes deverão gerar uma nova versão.
+
+### Links de anamnese
+
+| Método | Endpoint | Função |
+|---|---|---|
+| POST | `/patients/:id/anamnesis-links` | Gerar link |
+| GET | `/patients/:id/anamnesis-links` | Listar links gerados |
+| POST | `/anamnesis-links/:id/revoke` | Revogar link |
+| GET | `/public/anamnesis/:token` | Abrir formulário público |
+| POST | `/public/anamnesis/:token/responses` | Enviar respostas |
+| GET | `/patients/:id/anamneses` | Listar anamneses respondidas |
+| GET | `/anamneses/:id` | Consultar respostas autorizadas |
+
+### POST /patients/:id/anamnesis-links
+
+**Request:**
+
+```json
+{
+  "templateId": "uuid",
+  "expiresInHours": 48
+}
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "url": "https://sistema.institutomuraro.com.br/anamnese/TOKEN_EXEMPLO",
+    "status": "PENDING",
+    "expiresAt": "2026-10-28T12:00:00Z"
+  }
+}
+```
+
+O frontend poderá gerar um QR Code com essa URL.
+
+### Resposta pública
+
+`POST /public/anamnesis/:token/responses`
+
+```json
+{
+  "answers": [
+    {
+      "fieldId": "main_complaint",
+      "value": "Descrição informada pelo paciente"
+    },
+    {
+      "fieldId": "medication_use",
+      "value": "Não"
+    }
+  ]
+}
+```
+
+### Segurança dos formulários públicos
+
+- Token aleatório de alta entropia.
+- Prazo de expiração.
+- Uso único após envio.
+- Token armazenado de forma protegida no backend.
+- Validação dos campos enviados.
+- Limitação de tentativas.
+- Nenhum prontuário anterior exposto no link.
+- Verificação adicional da identidade do destinatário, quando necessária.
+- Preservação das respostas originais após envio.
+
+As respostas deverão ficar disponíveis somente para profissionais autorizados.
+
+---
+
+# 10. API de prontuários eletrônicos
+
+Este módulo terá requisitos especiais de autorização, auditoria e integridade.
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/patients/:id/medical-records` | Listar registros clínicos autorizados |
+| POST | `/patients/:id/medical-records` | Criar evolução clínica |
+| GET | `/medical-records/:id` | Consultar registro |
+| POST | `/medical-records/:id/addenda` | Adicionar retificação/complemento |
+| GET | `/medical-records/:id/attachments` | Listar anexos |
+| POST | `/medical-records/:id/attachments` | Vincular arquivo |
+
+### POST /patients/:id/medical-records
+
+```json
+{
+  "appointmentId": "uuid",
+  "professionalId": "uuid",
+  "evolution": "Registro de evolução clínica...",
+  "observations": "Observações complementares..."
+}
+```
+
+O profissional responsável será validado pelo backend a partir da sessão autenticada, não apenas do identificador enviado pelo frontend.
+
+### Modelo de prontuário
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "patientId": "uuid",
+    "professionalId": "uuid",
+    "appointmentId": "uuid",
+    "evolution": "Registro de evolução clínica...",
+    "observations": "Observações complementares...",
+    "recordedAt": "2026-10-26T17:30:00Z",
+    "createdBy": "uuid",
+    "addenda": []
+  }
+}
+```
+
+### Regras obrigatórias
+
+- Não haverá `DELETE` comum para registros clínicos.
+- Não haverá substituição silenciosa de evolução já finalizada.
+- Correções deverão preservar o histórico anterior.
+- Cada registro deverá identificar o autor.
+- Consultas e alterações relevantes deverão ser auditadas.
+- O acesso deverá depender de autorização clínica específica.
+- O frontend não poderá utilizar dados de prontuário sem autenticação apropriada.
+- Requisitos de assinatura, retenção, integridade e validade legal deverão ser avaliados antes da operação clínica real.
+
+### Complemento de registro
+
+`POST /medical-records/:id/addenda`
+
+```json
+{
+  "reason": "Complementação de informação",
+  "content": "Informação complementar do atendimento."
+}
+```
+
+O servidor registrará automaticamente o autor e a data do complemento.
+
+---
+
+# 11. API de arquivos e documentos
+
+**Prefixo:** `/files`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| POST | `/files` | Enviar arquivo privado |
+| GET | `/files/:id` | Consultar metadados |
+| GET | `/files/:id/download` | Baixar arquivo autorizado |
+
+### Upload
+
+`POST /files`
+
+**Content-Type:** `multipart/form-data`
+
+Campo obrigatório:
+
+`file`
+
+**Response:**
+
+```json
+{
+  "data": {
+    "id": "uuid",
+    "originalName": "documento.pdf",
+    "mimeType": "application/pdf",
+    "sizeBytes": 125000,
+    "createdAt": "2026-10-26T14:00:00Z"
+  }
+}
+```
+
+O backend validará o tipo real, o tamanho, a autorização e a segurança do arquivo antes de armazená-lo.
+
+**Tipos inicialmente permitidos:**
+- PDF.
+- PNG.
+- JPG/JPEG.
+
+**Limite sugerido:** 10 MB por arquivo, sujeito à validação da infraestrutura.
+
+Os arquivos deverão permanecer em armazenamento privado. O download exigirá autorização e não deverá revelar caminhos internos do servidor.
+
+---
+
+# 12. API financeira
+
+O módulo financeiro será dividido em cobranças, pagamentos, despesas e resumo.
+
+## 12.1 Cobranças
+
+**Prefixo:** `/finance/charges`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/finance/charges` | Listar cobranças |
+| POST | `/finance/charges` | Criar cobrança |
+| GET | `/finance/charges/:id` | Consultar cobrança |
+| PATCH | `/finance/charges/:id` | Atualizar cobrança não liquidada |
+| POST | `/finance/charges/:id/cancel` | Cancelar cobrança |
+| GET | `/patients/:id/charges` | Histórico financeiro do paciente |
+
+### Modelo de cobrança
+
+```json
+{
+  "id": "uuid",
+  "patientId": "uuid",
+  "appointmentId": "uuid",
+  "description": "Consulta individual",
+  "amountCents": 15000,
+  "paidCents": 0,
+  "dueDate": "2026-10-26",
+  "status": "OPEN"
+}
+```
+
+### Status financeiros
+
+```typescript
+type ChargeStatus =
+  | "OPEN"
+  | "PARTIAL"
+  | "PAID"
+  | "CANCELLED";
+```
+
+O status será calculado ou validado pelo backend conforme os pagamentos registrados.
+
+## 12.2 Pagamentos
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/finance/charges/:id/payments` | Listar pagamentos |
+| POST | `/finance/charges/:id/payments` | Registrar pagamento |
+| POST | `/finance/payments/:id/reverse` | Estornar lançamento |
+
+### POST /finance/charges/:id/payments
+
+```json
+{
+  "amountCents": 15000,
+  "method": "PIX",
+  "paidAt": "2026-10-26T14:00:00-03:00"
+}
+```
+
+### Métodos de pagamento
+
+```typescript
+type PaymentMethod =
+  | "PIX"
+  | "CASH"
+  | "CREDIT_CARD"
+  | "DEBIT_CARD"
+  | "TRANSFER"
+  | "OTHER";
+```
+
+Os pagamentos registrados não devem ser excluídos diretamente. Correções financeiras utilizarão estorno auditável.
+
+O sistema não processará pagamentos: apenas registrará recebimentos realizados fora da plataforma.
+
+## 12.3 Despesas
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/finance/expenses` | Listar despesas |
+| POST | `/finance/expenses` | Cadastrar despesa |
+| GET | `/finance/expenses/:id` | Consultar despesa |
+| PATCH | `/finance/expenses/:id` | Atualizar despesa |
+| POST | `/finance/expenses/:id/cancel` | Cancelar lançamento |
+
+### Modelo de despesa
+
+```json
+{
+  "id": "uuid",
+  "description": "Material de escritório",
+  "category": "SUPPLIES",
+  "amountCents": 25000,
+  "dueDate": "2026-10-28",
+  "paidAt": null,
+  "status": "OPEN"
+}
+```
+
+## 12.4 Resumo financeiro
+
+`GET /finance/summary`
+
+**Query params:**
+
+```text
+?from=2026-10-01
+&to=2026-10-31
+```
+
+**Response:**
+
+```json
+{
+  "data": {
+    "revenueCents": 1500000,
+    "expenseCents": 350000,
+    "outstandingCents": 200000,
+    "balanceCents": 1150000
+  }
+}
+```
+
+### Regras financeiras
+
+- Valores sempre em centavos.
+- Movimentações relevantes auditadas.
+- Não permitir pagamento superior ao saldo da cobrança sem regra explícita.
+- Permitir pagamentos parciais.
+- Separar pagamentos recebidos de valores ainda pendentes.
+- Resumo calculado pelo backend.
+- Não emitir nota fiscal.
+- Não realizar cobrança automática.
+- Não integrar bancos ou adquirentes no MVP.
+
+---
+
+# 13. API de dashboard
+
+**Prefixo:** `/dashboard`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/dashboard/summary` | Obter indicadores iniciais |
+
+### GET /dashboard/summary
+
+**Query params:**
+
+```text
+?date=2026-10-26
+```
+
+### Response
+
+```json
+{
+  "data": {
+    "date": "2026-10-26",
+    "appointments": {
+      "total": 25,
+      "scheduled": 8,
+      "confirmed": 12,
+      "completed": 3,
+      "cancelled": 1,
+      "noShow": 1
+    },
+    "patients": {
+      "totalActive": 350
+    },
+    "finance": {
+      "revenueTodayCents": 150000,
+      "outstandingCents": 50000
+    }
+  }
+}
+```
+
+**Observação:** O objeto `finance` será omitido para perfis sem autorização financeira.
+
+Os números apresentados deverão respeitar o perfil e o escopo de acesso do usuário autenticado.
+
+---
+
+# 14. API de configurações
+
+**Prefixo:** `/settings`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/settings/clinic` | Consultar configurações da clínica |
+| PATCH | `/settings/clinic` | Atualizar configurações |
+| GET | `/settings/whatsapp-templates` | Listar mensagens prontas |
+| PATCH | `/settings/whatsapp-templates/:id` | Atualizar modelo de mensagem |
+
+### Configurações da clínica
+
+```json
+{
+  "data": {
+    "name": "Instituto Muraro",
+    "timezone": "America/Sao_Paulo",
+    "phoneE164": "+5518999999999",
+    "address": null,
+    "logoFileId": null
+  }
+}
+```
+
+### Modelo de mensagem
+
+```json
+{
+  "id": "uuid",
+  "type": "CONFIRMATION",
+  "content": "Olá, {{patientName}}! Seu atendimento está marcado para {{date}} às {{time}} com {{professionalName}}."
+}
+```
+
+Variáveis permitidas:
+
+- `{{patientName}}`
+- `{{professionalName}}`
+- `{{date}}`
+- `{{time}}`
+- `{{serviceName}}`
+
+A API preparará o texto, mas nunca realizará o envio.
+
+---
+
+# 15. API de auditoria
+
+**Prefixo:** `/admin`
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/admin/audit-logs` | Consultar registros de auditoria |
+
+### Query params
+
+```text
+?userId=uuid
+&action=UPDATE
+&resource=APPOINTMENT
+&from=2026-10-01
+&to=2026-10-31
+&page=1
+&limit=20
+```
+
+### Modelo de evento
+
+```json
+{
+  "id": "uuid",
+  "actorId": "uuid",
+  "action": "UPDATE",
+  "resource": "APPOINTMENT",
+  "resourceId": "uuid",
+  "createdAt": "2026-10-26T15:00:00Z"
+}
+```
+
+Além de operações administrativas, a auditoria deverá registrar acessos e intervenções relevantes em prontuários.
+
+O acesso aos logs deverá ser restrito, com cuidado para não expor conteúdo clínico desnecessário.
+
+---
+
+# 16. Monitoramento
+
+| Método | Endpoint | Função |
+|---|---|---|
+| GET | `/health` | Verificar disponibilidade básica da aplicação |
+
+Exemplo:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+Essa rota não deverá expor credenciais, configurações ou informações internas sensíveis.
+
+---
+
+# 17. Matriz inicial de permissões
+
+| Recurso | Admin | Recepção | Profissional |
+|---|---|---|---|
+| Dashboard operacional | Sim | Sim | Próprio |
+| Cadastro de pacientes | Sim | Sim | Consulta autorizada |
+| Agenda geral | Sim | Sim | Própria |
+| Gerenciar profissionais | Sim | Não | Não |
+| Gestão de usuários | Sim | Não | Não |
+| Anamnese clínica | Somente se autorizado | Apenas status operacional | Pacientes autorizados |
+| Prontuário clínico | Somente se autorizado | Não | Pacientes autorizados |
+| Financeiro | Sim | Conforme permissão específica | Não, por padrão |
+| Configurações | Sim | Não | Não |
+| Auditoria administrativa | Conforme autorização | Não | Não |
+
+**Importante:** A relação profissional-paciente e as permissões clínicas serão verificadas no backend. Um perfil administrativo não deverá conceder acesso automático a todo prontuário.
+
+---
+
+# 18. Contratos TypeScript do frontend
+
+Os tipos definitivos serão gerados ou validados com base na especificação OpenAPI.
+
+### Modelos essenciais
+
+```typescript
+export type UserRole =
+  | "ADMIN"
+  | "RECEPTION"
+  | "PROFESSIONAL";
+
+export type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
+
+export type ChargeStatus =
+  | "OPEN"
+  | "PARTIAL"
+  | "PAID"
+  | "CANCELLED";
+
+export interface Patient {
+  id: string;
+  fullName: string;
+  birthDate: string;
+  cpf: string | null;
+  phoneE164: string | null;
+  email: string | null;
+  active: boolean;
+}
+
+export interface Professional {
+  id: string;
+  name: string;
+  specialty: string;
+  color: string;
+  active: boolean;
+}
+
+export interface Appointment {
+  id: string;
+  patientId: string;
+  professionalId: string;
+  serviceId: string;
+  startsAt: string;
+  endsAt: string;
+  status: AppointmentStatus;
+  internalNote: string | null;
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  durationMinutes: number;
+  priceCents: number;
+  active: boolean;
+}
+
+export interface Charge {
+  id: string;
+  patientId: string;
+  appointmentId: string | null;
+  description: string;
+  amountCents: number;
+  paidCents: number;
+  dueDate: string;
+  status: ChargeStatus;
+}
+
+export interface ApiResponse<T> {
+  data: T;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+```
+
+Essas interfaces são o ponto de partida. Não substituem os schemas completos, que também precisarão representar criação, atualização, filtros, validações, anamnese, prontuários e erros.
+
+---
+
+# 19. Mapeamento das telas para os endpoints
+
+Este é o principal guia para organizar o frontend.
+
+| Tela | Endpoints necessários |
+|---|---|
+| Login | `/auth/login`, `/auth/me` |
+| Dashboard | `/dashboard/summary`, `/appointments` |
+| Agenda | `/appointments`, `/appointments/availability` |
+| Novo agendamento | `/patients`, `/professionals`, `/services`, `/appointments` |
+| Detalhes da consulta | `/appointments/:id` e ações de status |
+| WhatsApp | `/appointments/:id/whatsapp-draft` |
+| Lista de pacientes | `/patients` |
+| Cadastro de paciente | `POST /patients` |
+| Detalhes do paciente | `/patients/:id`, contatos e histórico autorizado |
+| Profissionais | `/professionals`, horários e bloqueios |
+| Serviços | `/services` |
+| Anamneses | `/anamnesis-templates`, links e respostas |
+| Formulário público | `/public/anamnesis/:token` |
+| Prontuário | `/patients/:id/medical-records`, `/medical-records/:id` |
+| Financeiro | `/finance/charges`, `/finance/expenses`, `/finance/summary` |
+| Usuários | `/users` |
+| Configurações | `/settings/clinic`, `/settings/whatsapp-templates` |
+
+---
+
+# 20. Como desenvolver o frontend agora
+
+## Modo MOCK
+
+O frontend deverá funcionar inicialmente sem backend ativo, utilizando dados fictícios.
+
+Criar mocks para:
+
+- Usuários e perfis.
+- Pacientes.
+- Profissionais.
+- Serviços.
+- Horários disponíveis.
+- Agendamentos.
+- Modelos de anamnese.
+- Respostas de anamnese.
+- Registros clínicos fictícios.
+- Cobranças.
+- Pagamentos.
+- Despesas.
+- Indicadores do dashboard.
+
+Utilizar MSW para interceptar as chamadas HTTP durante o desenvolvimento.
+
+Os mocks deverão reproduzir os mesmos contratos, códigos HTTP e cenários de erro previstos na API real.
+
+## Modo API
+
+Quando o backend estiver disponível, o frontend deverá utilizar a mesma camada de serviços e os mesmos tipos, substituindo apenas a origem das respostas.
+
+Variável de ambiente:
+
+`VITE_API_URL=http://localhost:3333/api/v1`
+
+Em produção, preferir `/api/v1` na mesma origem da aplicação, usando o proxy Caddy.
+
+### Organização sugerida
+
+```text
+frontend/
+└── src/
+    ├── api/
+    │   ├── client.ts
+    │   ├── auth.api.ts
+    │   ├── patients.api.ts
+    │   ├── professionals.api.ts
+    │   ├── services.api.ts
+    │   ├── appointments.api.ts
+    │   ├── anamnesis.api.ts
+    │   ├── medical-records.api.ts
+    │   ├── finance.api.ts
+    │   └── dashboard.api.ts
+    │
+    ├── components/
+    ├── pages/
+    ├── hooks/
+    ├── layouts/
+    ├── mocks/
+    │   ├── data/
+    │   ├── handlers/
+    │   └── browser.ts
+    ├── routes/
+    ├── types/
+    └── utils/
+```
+
+Utilizar TanStack Query para consultas, paginação, mutações e invalidação de cache. Desabilitar persistência de dados clínicos sensíveis em armazenamento local.
+
+---
+
+# 21. Prioridade de implementação
+
+Embora todos os endpoints estejam especificados, não é necessário implementá-los simultaneamente.
+
+### Fase 1 — Estrutura operacional
+
+1. Autenticação.
+2. Usuários e profissionais.
+3. Pacientes e responsáveis.
+4. Serviços.
+5. Horários e disponibilidade.
+6. Agendamentos.
+
+### Fase 2 — Atendimento clínico
+
+1. Modelos de anamnese.
+2. Links e formulários públicos.
+3. Respostas de anamnese.
+4. Registros de evolução.
+5. Anexos e histórico clínico.
+
+### Fase 3 — Administração
+
+1. Cobranças e pagamentos.
+2. Despesas.
+3. Dashboard.
+4. Mensagens de WhatsApp.
+5. Configurações.
+
+### Fase 4 — Validação para produção
+
+1. Auditoria.
+2. Testes de permissões.
+3. Validação dos requisitos clínicos e legais.
+4. Testes de segurança.
+5. Backup e recuperação.
+6. Homologação com o Instituto Muraro.
+7. Planejamento da migração do sistema antigo.
+
+Os controles de segurança devem ser desenvolvidos desde a primeira fase e não somente ao final.
+
+---
+
+# 22. Instrução para o desenvolvedor frontend
+
+Desenvolva o frontend do Sistema de Gestão Clínica Instituto Muraro utilizando React, Vite, TypeScript, Tailwind CSS, shadcn/ui e TanStack Query.
+
+Utilize integralmente os contratos REST descritos nesta especificação.
+
+Inicialmente, desenvolva todas as interfaces com dados simulados por MSW. Não exija conexão com o PostgreSQL ou com uma API real durante a montagem das telas.
+
+Crie uma camada de serviços isolada da interface, permitindo substituir os mocks pela API Fastify sem reescrever componentes.
+
+Organize as telas por módulos, utilizando layouts reutilizáveis, formulários validados, tratamento de loading, estados vazios, erros e feedback visual das operações.
+
+Implemente:
+- Dashboard administrativo.
+- Agenda diária, semanal e mensal.
+- Cadastro e gerenciamento de pacientes.
+- Cadastro e gerenciamento de profissionais.
+- Cadastro de serviços.
+- Agendamentos e controle de status.
+- Visualização de disponibilidade.
+- Integração manual com WhatsApp.
+- Anamnese digital e formulário público.
+- Visualização de prontuários fictícios.
+- Controle financeiro básico.
+- Usuários e permissões.
+- Configurações da clínica.
+
+As permissões no frontend servirão para controlar a navegação e a interface. A segurança efetiva será responsabilidade da API.
+
+Todos os dados de demonstração deverão ser fictícios. Não inserir dados pessoais reais ou informações clínicas reais nos mocks.
+
+**Resultado esperado:** frontend demonstrativo funcional, com navegação entre os módulos, formulários e interações simuladas, preparado para integração posterior com o backend MVC do Instituto Muraro.
+
+---
+
+**ETH Tecnologia — Especificação de API REST v1.0**
+
+Documento inicial de integração. A versão definitiva deverá ser transformada em um arquivo OpenAPI validado, com schemas completos por operação, exemplos de sucesso e erro, regras de autorização e testes de contrato.

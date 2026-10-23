@@ -1,0 +1,444 @@
+# ESCOPO DO PROJETO
+## Sistema de Gestão Clínica — Instituto Muraro
+
+**Empresa desenvolvedora:** ETH Tecnologia  
+**Cliente:** Instituto Muraro  
+**Tipo de projeto:** Sistema web personalizado  
+**Modalidade:** Desenvolvimento sob medida  
+**Investimento estimado:** R$ 6.900  
+**Arquitetura:** MVC + Service Layer  
+**Hospedagem:** Oracle Cloud Infrastructure
+
+---
+
+# 1. Visão geral
+
+O projeto consiste no desenvolvimento de um sistema web exclusivo para o Instituto Muraro, com o objetivo de substituir a plataforma de gestão utilizada atualmente.
+
+A solução centralizará as principais operações da instituição, incluindo gestão de pacientes, agenda de profissionais, anamneses, prontuários eletrônicos, controle financeiro e administração.
+
+O sistema será desenvolvido com interface responsiva, permitindo acesso por computadores, tablets e celulares, sem a necessidade de instalar aplicativos.
+
+A proposta prioriza simplicidade, organização, segurança e facilidade de utilização.
+
+# 2. Funcionalidades do sistema
+
+## Módulo 01 — Gestão de pacientes
+
+Responsável pelo cadastro e gerenciamento das informações dos pacientes.
+
+**Funcionalidades:**
+- Cadastro de novos pacientes.
+- Nome completo, data de nascimento e contatos.
+- CPF e endereço, quando necessários.
+- Cadastro de responsáveis legais.
+- Consulta, edição e pesquisa de cadastros.
+- Histórico de agendamentos.
+- Visualização do profissional responsável.
+- Associação entre paciente, anamnese e prontuário.
+- Situação cadastral ativa ou inativa.
+
+**Objetivo:** Centralizar todas as informações dos pacientes em um único ambiente.
+
+## Módulo 02 — Agenda de atendimentos
+
+Agenda digital para gerenciar os horários e atendimentos dos profissionais.
+
+**Funcionalidades:**
+- Visualização diária, semanal e mensal.
+- Cadastro de atendimentos.
+- Associação entre paciente e profissional.
+- Definição de horários de trabalho.
+- Bloqueio de horários e datas.
+- Reagendamento de consultas.
+- Cancelamento de atendimentos.
+- Controle de disponibilidade.
+- Prevenção de conflitos de horário.
+- Identificação visual do status dos agendamentos.
+
+**Status disponíveis:**
+- Agendado.
+- Confirmado.
+- Em atendimento.
+- Concluído.
+- Cancelado.
+- Não compareceu.
+
+Os profissionais poderão visualizar suas agendas conforme as permissões estabelecidas.
+
+## Módulo 03 — Integração simplificada com WhatsApp
+
+Comunicação facilitada com pacientes, sem contratação de APIs ou sistemas de automação.
+
+**Funcionalidades:**
+- Botão de WhatsApp no cadastro do paciente.
+- Abertura direta de conversa por meio de `wa.me`.
+- Mensagens pré-preenchidas com dados do agendamento.
+- Modelos de confirmação, lembrete e cancelamento.
+- Geração de QR Codes para acesso a links.
+- Registro manual das confirmações na agenda.
+
+**Exemplo de funcionamento:**
+
+1. A recepcionista acessa um agendamento.
+2. Seleciona a opção "Enviar confirmação".
+3. O sistema prepara uma mensagem com nome, data e horário.
+4. O WhatsApp abre com a mensagem preenchida.
+5. A recepcionista envia a mensagem.
+6. Após receber a resposta, atualiza o status no sistema.
+
+**Limitação:** O sistema não enviará mensagens automaticamente, não lerá respostas do WhatsApp e não realizará integração com WhatsApp Business API.
+
+## Módulo 04 — Anamnese digital
+
+Formulários digitais para coleta de informações antes ou durante os atendimentos.
+
+**Funcionalidades:**
+- Cadastro de formulários de anamnese.
+- Campos de texto, seleção e respostas objetivas.
+- Disponibilização por link ou QR Code.
+- Preenchimento por celular.
+- Associação das respostas ao paciente.
+- Consulta das respostas pelo profissional autorizado.
+- Histórico dos formulários preenchidos.
+- Identificação da data de preenchimento.
+
+Os modelos de formulário serão definidos durante o levantamento de requisitos.
+
+**Objetivo:** Reduzir o uso de papel e facilitar a organização das informações clínicas.
+
+## Módulo 05 — Prontuário eletrônico
+
+Ambiente clínico reservado para registro e consulta dos atendimentos dos pacientes.
+
+**Funcionalidades:**
+- Prontuário individual.
+- Histórico cronológico de atendimentos.
+- Registro de evolução clínica.
+- Anotações e observações por atendimento.
+- Identificação do profissional responsável.
+- Data e horário dos registros.
+- Consulta de anamneses vinculadas.
+- Anexação de documentos, com limites definidos.
+- Histórico de alterações e registros de auditoria.
+- Controle de acesso por profissional autorizado.
+
+**Requisitos obrigatórios:**
+- Proteção das informações clínicas.
+- Identificação individual de usuários.
+- Restrição de acesso aos prontuários.
+- Integridade e rastreabilidade dos registros.
+- Backup e recuperação de informações.
+
+**Observação:** Os requisitos de assinatura, guarda, integridade e validade dos registros clínicos devem ser validados conforme as profissões e normas aplicáveis ao Instituto Muraro antes da substituição definitiva do prontuário atual.
+
+## Módulo 06 — Gestão financeira básica
+
+Controle financeiro simplificado dos atendimentos e movimentações da instituição.
+
+**Funcionalidades:**
+- Cadastro de valores de serviços.
+- Registro de pagamentos.
+- Controle de pagamentos pendentes.
+- Identificação das formas de pagamento.
+- Registro de despesas.
+- Histórico financeiro por paciente.
+- Filtro por período.
+- Resumo de receitas e despesas.
+- Consulta de movimentações financeiras.
+
+**Não inclui nesta versão:**
+- Emissão de notas fiscais.
+- Integração bancária.
+- Pagamento online.
+- Conciliação automática.
+- Controle avançado de convênios.
+- Cálculo complexo de repasses.
+
+## Módulo 07 — Painel administrativo
+
+Área principal para acompanhamento das operações do Instituto Muraro.
+
+**Indicadores previstos:**
+- Atendimentos do dia.
+- Próximos agendamentos.
+- Consultas confirmadas.
+- Atendimentos pendentes de confirmação.
+- Cancelamentos.
+- Quantidade de pacientes cadastrados.
+- Resumo financeiro mensal.
+
+O painel terá navegação simples, cards informativos, filtros e atalhos para as funcionalidades mais utilizadas.
+
+## Módulo 08 — Usuários e permissões
+
+Gerenciamento de acesso ao sistema de acordo com a função de cada colaborador.
+
+**Perfis previstos:**
+
+**Administrador**
+- Gestão geral do sistema.
+- Cadastro de profissionais.
+- Controle de usuários e permissões.
+- Acesso aos indicadores administrativos.
+- Gerenciamento financeiro.
+
+**Recepção**
+- Cadastro de pacientes.
+- Agendamentos e reagendamentos.
+- Confirmações e cancelamentos.
+- Visualização de informações administrativas necessárias.
+
+**Profissional**
+- Visualização da agenda autorizada.
+- Consulta dos pacientes autorizados.
+- Registro de evolução clínica.
+- Consulta aos prontuários permitidos.
+
+O acesso a dados clínicos será restrito conforme as regras de autorização definidas para a instituição.
+
+---
+
+# 3. Tecnologias e arquitetura
+
+O sistema será desenvolvido utilizando tecnologias consolidadas, com foco em desempenho, facilidade de manutenção e baixo custo de infraestrutura.
+
+| Componente | Tecnologia |
+|---|---|
+| Arquitetura | MVC + Service Layer |
+| Frontend | React + Vite + TypeScript |
+| Estilização | Tailwind CSS |
+| Componentes | shadcn/ui |
+| Backend | Node.js + Fastify |
+| Banco de dados | PostgreSQL |
+| ORM | Prisma |
+| Validações | Zod |
+| Autenticação | JWT + controle de permissões |
+| Hospedagem | Oracle Cloud Compute |
+| Gerenciamento de processos | PM2 |
+| Servidor web / HTTPS | Caddy |
+| Controle de versão | Git + GitHub |
+| Integração WhatsApp | Links `wa.me` |
+| QR Code | Biblioteca de geração de QR Codes |
+
+## Padrão arquitetural MVC
+
+O projeto seguirá uma arquitetura MVC adaptada à separação entre frontend e backend.
+
+**Model:** Representação das entidades, relacionamentos e operações de persistência dos dados.
+
+**View:** Interface React utilizada pelos administradores, recepcionistas e profissionais.
+
+**Controller:** Recebimento de requisições HTTP, validação das entradas e encaminhamento das operações.
+
+**Service Layer:** Implementação das regras de negócio, verificações de autorização e fluxos dos módulos.
+
+Será utilizada uma API REST para comunicação entre frontend e backend.
+
+## Organização do código
+
+```text
+instituto-muraro/
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── pages/
+│       ├── layouts/
+│       ├── hooks/
+│       ├── services/
+│       └── routes/
+│
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   │
+│   └── src/
+│       ├── modules/
+│       │   ├── auth/
+│       │   ├── patients/
+│       │   ├── professionals/
+│       │   ├── appointments/
+│       │   ├── anamnesis/
+│       │   ├── medical-records/
+│       │   └── finance/
+│       │
+│       ├── middlewares/
+│       ├── config/
+│       └── shared/
+│
+├── infrastructure/
+│   ├── Caddyfile
+│   ├── ecosystem.config.cjs
+│   └── backup-scripts/
+│
+└── README.md
+```
+
+Cada módulo será organizado com Controllers, Services, Repositories, rotas e schemas de validação, conforme a necessidade.
+
+---
+
+# 4. Infraestrutura e hospedagem
+
+A aplicação será hospedada na Oracle Cloud Infrastructure, utilizando uma máquina virtual Linux.
+
+**Serviços previstos:**
+- Frontend React compilado e servido pelo Caddy.
+- Backend Node.js executado por meio do PM2.
+- Banco PostgreSQL com acesso restrito.
+- HTTPS configurado no domínio do sistema.
+- Armazenamento privado de documentos clínicos.
+- Rotinas de backup automatizadas.
+- Monitoramento básico da aplicação.
+
+Não será necessário utilizar Docker.
+
+A configuração definitiva dependerá do volume de dados, número de profissionais e demanda de acessos simultâneos.
+
+Recursos gratuitos da Oracle poderão ser utilizados em desenvolvimento e homologação. O ambiente de produção dependerá da validação de disponibilidade, capacidade, segurança e recuperação.
+
+---
+
+# 5. Segurança e proteção de dados
+
+Como o sistema armazenará dados pessoais e informações de saúde, deverão ser implementados:
+
+- Autenticação individual e proteção das sessões.
+- Controle de acesso baseado em perfis e autorizações.
+- Criptografia das comunicações via HTTPS.
+- Proteção de credenciais e senhas.
+- Registro de eventos relevantes e alterações clínicas.
+- Acesso restrito ao banco de dados.
+- Armazenamento privado de arquivos.
+- Backups criptografados fora do servidor principal.
+- Testes de restauração.
+- Definição de políticas de retenção e acesso aos dados.
+
+O projeto deverá considerar a LGPD e os requisitos legais e profissionais específicos dos registros clínicos.
+
+---
+
+# 6. Substituição do sistema atual
+
+O Instituto Muraro já utiliza uma solução de gestão. Portanto, o novo sistema deverá permitir uma transição organizada.
+
+**Etapas previstas:**
+
+1. Levantamento das funcionalidades utilizadas atualmente.
+2. Identificação dos dados necessários para a continuidade dos atendimentos.
+3. Verificação das possibilidades de exportação dos dados.
+4. Configuração inicial do novo ambiente.
+5. Cadastro dos usuários e profissionais.
+6. Testes com dados controlados.
+7. Validação com a equipe.
+8. Implantação gradual do novo sistema.
+
+**Migração:** A importação simples de cadastros por planilha poderá ser contemplada após avaliação do formato dos dados. Migração de prontuários históricos, anexos e registros financeiros anteriores dependerá de análise e orçamento específicos.
+
+O sistema antigo não deverá ser desativado antes da validação da continuidade dos dados clínicos e das obrigações de guarda.
+
+---
+
+# 7. Etapas de desenvolvimento
+
+### Etapa 1 — Levantamento e estruturação
+- Definição dos requisitos finais.
+- Mapeamento das rotinas.
+- Modelagem do banco de dados.
+- Definição dos perfis e permissões.
+
+### Etapa 2 — Desenvolvimento da base
+- Login e autenticação.
+- Gestão de usuários.
+- Cadastro de pacientes.
+- Cadastro de profissionais.
+- Agenda de atendimentos.
+
+### Etapa 3 — Módulos complementares
+- Anamnese digital.
+- Prontuário eletrônico.
+- Financeiro simplificado.
+- WhatsApp manual e QR Codes.
+
+### Etapa 4 — Validação e testes
+- Testes funcionais.
+- Testes de acesso e permissões.
+- Validação dos fluxos com a equipe.
+- Ajustes de erros identificados.
+
+### Etapa 5 — Implantação
+- Configuração da hospedagem.
+- Preparação do banco de dados.
+- Configuração de backups.
+- Publicação do sistema.
+- Orientação inicial de uso.
+
+---
+
+# 8. Itens não incluídos no escopo inicial
+
+Para manter o desenvolvimento dentro do orçamento previsto, não estão incluídos:
+
+- Aplicativos nativos Android e iOS.
+- Envio automático de mensagens por WhatsApp.
+- Chatbot ou inteligência artificial.
+- Integração com WhatsApp Business API.
+- Integração bancária.
+- Emissão de notas fiscais.
+- Pagamentos online.
+- Portal completo de pacientes.
+- Integração com convênios.
+- Assinatura digital especializada, quando exigida.
+- Relatórios analíticos avançados.
+- Migração complexa de dados históricos.
+- Novos módulos não definidos no levantamento.
+
+Funcionalidades adicionais poderão ser planejadas e orçadas posteriormente.
+
+---
+
+# 9. Entregáveis
+
+Ao final do desenvolvimento, estão previstos:
+
+- Sistema web personalizado para o Instituto Muraro.
+- Interfaces responsivas.
+- Módulos definidos no escopo.
+- Painel administrativo.
+- Banco de dados estruturado.
+- Autenticação e permissões.
+- Ambiente de produção configurado.
+- Testes e correções do escopo contratado.
+- Orientação inicial de uso.
+- Documentação técnica e operacional básica.
+
+---
+
+# 10. Investimento e manutenção
+
+**Desenvolvimento estimado:** R$ 6.900
+
+**Condição sugerida:**
+- Entrada de 40%: R$ 2.760.
+- Entrega e aceite de 60%: R$ 4.140.
+
+**Manutenção mensal sugerida:** R$ 397.
+
+A mensalidade deverá ter seus serviços delimitados contratualmente, considerando correções, manutenção preventiva, acompanhamento básico e suporte.
+
+Custos com infraestrutura, domínio, armazenamento e serviços externos deverão ser especificados antes da contratação, indicando se serão pagos diretamente pelo cliente ou incluídos na mensalidade.
+
+O investimento é preliminar e depende da aprovação do escopo definitivo, da avaliação da migração e da validação dos requisitos clínicos aplicáveis.
+
+---
+
+# 11. Resultado esperado
+
+Ao final do projeto, o Instituto Muraro terá uma plataforma própria que permitirá centralizar pacientes, organizar agendas, manter registros clínicos, acompanhar movimentações financeiras e facilitar a comunicação com pacientes.
+
+O sistema será desenvolvido de acordo com os processos aprovados pela instituição, permitindo futuras melhorias e novos módulos conforme a evolução das necessidades.
+
+**ETH Tecnologia**  
+*Tecnologia desenvolvida para a realidade do seu negócio.*

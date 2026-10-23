@@ -1,0 +1,2321 @@
+# INSTITUTO MURARO — PROMPT MASTER FULL-STACK V4.0
+## Especificação unificada de desenvolvimento
+
+**Cliente:** Instituto Muraro — de Movimento e Saúde  
+**Desenvolvedora:** ETH Tecnologia  
+**Projeto:** Sistema web personalizado de gestão clínica  
+**Arquitetura:** MVC modular + Service Layer + Repository Pattern  
+**Comunicação:** API REST documentada com OpenAPI/Swagger  
+**Banco de dados:** PostgreSQL  
+**Hospedagem:** Oracle Cloud Infrastructure  
+**Objetivo:** Substituir o sistema de gestão utilizado atualmente pelo instituto.
+
+---
+
+# 1. MISSÃO
+
+Atue como uma equipe de desenvolvimento composta por:
+
+- Arquiteto de software.
+- Desenvolvedor frontend sênior.
+- Desenvolvedor backend sênior.
+- Especialista em PostgreSQL.
+- Engenheiro de segurança.
+- Especialista em UX/UI.
+- Engenheiro de testes e qualidade.
+- Especialista em infraestrutura Linux.
+
+Sua missão é desenvolver e integrar o Sistema de Gestão Clínica do Instituto Muraro.
+
+O projeto já possui um frontend inicial. **Não recrie a aplicação desnecessariamente.**
+
+Antes de desenvolver:
+
+1. Inspecione o código existente.
+2. Identifique o framework realmente utilizado.
+3. Avalie os componentes disponíveis.
+4. Mapeie as rotas existentes.
+5. Identifique os endpoints simulados.
+6. Preserve componentes funcionais.
+7. Corrija inconsistências.
+8. Estruture o backend de acordo com o contrato REST.
+9. Implemente os módulos gradualmente.
+10. Execute testes funcionais e de integração.
+
+**Objetivo principal:** desenvolver um sistema real, com frontend e backend integrados, utilizando regras de negócio consistentes, banco de dados estruturado, autenticação e controle de acesso.
+
+A implementação deverá preservar os fluxos funcionais já existentes.
+
+Não declarar funcionalidades concluídas apenas porque a interface renderiza ou porque um endpoint responde.
+
+---
+
+# 2. STACK TECNOLÓGICA DEFINITIVA
+
+## Frontend
+
+| Componente | Tecnologia |
+|---|---|
+| Framework | React + Vite |
+| Linguagem | TypeScript |
+| Estilização | Tailwind CSS |
+| Componentes | shadcn/ui |
+| Navegação | React Router |
+| Requisições e cache | TanStack Query |
+| Formulários | React Hook Form |
+| Validação | Zod |
+| Calendário | FullCalendar |
+| Ícones | Lucide |
+| Gráficos | Recharts |
+| Mock API | MSW |
+| QR Code | Biblioteca React de QR Code |
+| Cliente HTTP | Fetch ou Axios, centralizado |
+
+## Backend
+
+| Componente | Tecnologia |
+|---|---|
+| Runtime | Node.js LTS |
+| Framework | Fastify |
+| Linguagem | TypeScript |
+| Arquitetura | MVC + Service Layer |
+| Persistência | Prisma ORM |
+| Banco de dados | PostgreSQL |
+| Validação | Zod |
+| Documentação | Swagger / OpenAPI 3.1 |
+| Autenticação | Sessões com JWT e cookies seguros |
+| Autorização | RBAC + regras de acesso por recurso |
+| Logs | Pino |
+| Testes | Vitest + Fastify inject |
+| Testes de interface | Playwright |
+
+## Infraestrutura
+
+| Componente | Tecnologia |
+|---|---|
+| Cloud | Oracle Cloud Infrastructure |
+| Servidor | Linux Ubuntu |
+| Gerenciador de processos | PM2 |
+| Proxy reverso | Caddy |
+| HTTPS | Caddy |
+| Banco | PostgreSQL na Oracle Compute |
+| Backups | PostgreSQL + arquivos em destino externo |
+| Versionamento | Git + GitHub |
+
+**Não utilizar Docker.**
+
+Todas as tecnologias deverão ter versões compatíveis verificadas antes da instalação.
+
+Se o frontend atual estiver em Next.js, avaliar tecnicamente a migração para Vite, sem descartar código existente. Não realizar uma migração destrutiva.
+
+---
+
+# 3. ARQUITETURA GERAL
+
+O sistema seguirá a arquitetura:
+
+```text
+USUÁRIO
+   │
+   ▼
+FRONTEND REACT
+   │
+   ▼
+API REST /api/v1
+   │
+   ▼
+FASTIFY ROUTES
+   │
+   ▼
+CONTROLLERS
+   │
+   ▼
+SERVICES
+   │
+   ▼
+REPOSITORIES
+   │
+   ▼
+PRISMA ORM
+   │
+   ▼
+POSTGRESQL
+```
+
+## Responsabilidades
+
+**View:** componentes React, páginas, formulários, calendário, tabelas e dashboards.
+
+**Controller:** recebe requisições, extrai informações validadas, chama os Services e devolve respostas HTTP.
+
+**Service:** concentra regras de negócio, transações, validações de domínio e verificações de autorização.
+
+**Repository:** centraliza consultas, filtros e persistência utilizando Prisma.
+
+**Model:** representa entidades, relacionamentos e estruturas do domínio.
+
+## Regras arquiteturais
+
+- Não colocar regras de negócio dentro dos Controllers.
+- Não executar consultas Prisma diretamente nas rotas.
+- Não colocar regras de autorização apenas no frontend.
+- Não duplicar regras de disponibilidade em diversos módulos.
+- Não duplicar schemas de formulários.
+- Não misturar responsabilidades clínicas com componentes administrativos.
+- Não acessar diretamente o banco pelo frontend.
+- Utilizar injeção de dependências simples e tipada quando necessário.
+- Criar interfaces e tipos compartilhados por contratos OpenAPI.
+
+---
+
+# 4. ORGANIZAÇÃO DO REPOSITÓRIO
+
+Utilizar um único repositório organizado em aplicações e infraestrutura.
+
+```text
+instituto-muraro/
+│
+├── frontend/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── components/
+│   │   ├── features/
+│   │   │   ├── dashboard/
+│   │   │   ├── appointments/
+│   │   │   ├── patients/
+│   │   │   ├── professionals/
+│   │   │   ├── services/
+│   │   │   ├── anamnesis/
+│   │   │   ├── medical-records/
+│   │   │   ├── finance/
+│   │   │   ├── users/
+│   │   │   └── settings/
+│   │   ├── hooks/
+│   │   ├── layouts/
+│   │   ├── mocks/
+│   │   ├── routes/
+│   │   ├── types/
+│   │   └── utils/
+│   └── package.json
+│
+├── backend/
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   ├── migrations/
+│   │   └── seed.ts
+│   │
+│   ├── src/
+│   │   ├── modules/
+│   │   │   ├── auth/
+│   │   │   ├── users/
+│   │   │   ├── patients/
+│   │   │   ├── professionals/
+│   │   │   ├── services/
+│   │   │   ├── appointments/
+│   │   │   ├── availability/
+│   │   │   ├── calendar-blocks/
+│   │   │   ├── anamnesis/
+│   │   │   ├── medical-records/
+│   │   │   ├── files/
+│   │   │   ├── finance/
+│   │   │   ├── dashboard/
+│   │   │   ├── settings/
+│   │   │   └── audit/
+│   │   │
+│   │   ├── config/
+│   │   ├── plugins/
+│   │   ├── middlewares/
+│   │   ├── shared/
+│   │   ├── app.ts
+│   │   └── server.ts
+│   │
+│   └── package.json
+│
+├── contracts/
+│   └── openapi.yaml
+│
+├── infrastructure/
+│   ├── Caddyfile
+│   ├── ecosystem.config.cjs
+│   ├── backup-scripts/
+│   └── deployment/
+│
+├── docs/
+│   ├── architecture.md
+│   ├── database.md
+│   ├── api.md
+│   ├── security.md
+│   └── deployment.md
+│
+└── README.md
+```
+
+## Estrutura de um módulo MVC
+
+Exemplo: pacientes.
+
+```text
+patients/
+├── patient.routes.ts
+├── patient.controller.ts
+├── patient.service.ts
+├── patient.repository.ts
+├── patient.schema.ts
+├── patient.types.ts
+└── patient.test.ts
+```
+
+Adotar o mesmo padrão nos demais módulos, sem criar arquivos artificiais quando não forem necessários.
+
+---
+
+# 5. IDENTIDADE VISUAL DO FRONTEND
+
+Manter a logo oficial do Instituto Muraro.
+
+A identidade deverá utilizar:
+
+- Azul-marinho institucional.
+- Branco.
+- Fundos claros.
+- Azul suave para elementos secundários.
+- Cores semânticas para indicadores.
+- Tipografia legível.
+- Espaçamentos consistentes.
+- Ícones padronizados.
+- Cards e tabelas profissionais.
+
+## Sidebar definitiva
+
+**PRINCIPAL**
+- Visão geral.
+- Agendamentos.
+- Pacientes.
+- Profissionais.
+
+**ATENDIMENTO CLÍNICO**
+- Anamneses.
+- Prontuários.
+
+**GESTÃO**
+- Serviços.
+- Financeiro.
+- Usuários e permissões.
+- Configurações.
+
+## Correções globais
+
+- Data dinâmica.
+- Fuso America/Sao_Paulo.
+- Breadcrumbs corretos.
+- Títulos específicos por página.
+- Botões contextuais.
+- Ausência de ações duplicadas.
+- Navegação responsiva.
+- Estados de loading.
+- Estados vazios.
+- Tratamento de erros.
+- Confirmação de ações relevantes.
+- Feedback após alterações.
+- Sem textos pequenos demais.
+- Sem componentes de outros módulos na página errada.
+
+Todos os botões deverão possuir comportamento funcional.
+
+---
+
+# 6. MÓDULOS DO FRONTEND
+
+O frontend deverá contemplar as seguintes áreas.
+
+## 6.1 Dashboard
+
+- Atendimentos do dia.
+- Pacientes ativos.
+- Consultas confirmadas.
+- Confirmações pendentes.
+- Questionários pendentes.
+- Receita mensal.
+- Valores a receber.
+- Agenda do dia.
+- Gráficos de ocupação.
+- Ações rápidas.
+
+Os dados deverão vir da API ou dos mocks, nunca de valores estáticos independentes.
+
+## 6.2 Agenda
+
+Utilizar FullCalendar com:
+
+- Visualização diária.
+- Visualização semanal.
+- Visualização mensal.
+- Navegação entre datas.
+- Filtros por profissional.
+- Filtros por serviço.
+- Filtros por status.
+- Arrastar e soltar eventos.
+- Redimensionar duração.
+- Clique em horários vazios.
+- Clique em eventos existentes.
+- Identificação de bloqueios.
+- Cores semânticas.
+- Grade de 15 ou 30 minutos.
+
+Não utilizar plugins pagos sem aprovação.
+
+## 6.3 Pacientes
+
+- Listagem.
+- Busca.
+- Cadastro.
+- Edição.
+- Responsáveis legais.
+- Contatos.
+- Histórico de consultas.
+- Anamneses.
+- Prontuários autorizados.
+- Histórico financeiro administrativo.
+- Ativação e desativação.
+
+## 6.4 Profissionais
+
+- Cadastro.
+- Edição.
+- Especialidade.
+- Registro profissional.
+- Serviços vinculados.
+- Horários semanais.
+- Almoço.
+- Bloqueios.
+- Férias.
+- Agenda individual.
+- Status ativo/inativo.
+
+## 6.5 Serviços
+
+- CRUD.
+- Nome.
+- Descrição.
+- Duração.
+- Valor.
+- Profissionais associados.
+- Ativação e desativação.
+
+## 6.6 Anamneses
+
+- CRUD de modelos.
+- Construtor de perguntas.
+- Modelos em rascunho.
+- Publicação.
+- Versionamento.
+- Duplicação.
+- Arquivamento.
+- Geração de links.
+- QR Code.
+- Respostas.
+- Histórico.
+
+## 6.7 Prontuários
+
+- Pacientes autorizados.
+- Histórico clínico.
+- Evoluções.
+- Anamneses relacionadas.
+- Questionários pré-consulta.
+- Anexos.
+- Complementação de registros.
+- Identificação de autoria e data.
+
+## 6.8 Financeiro
+
+- Cobranças.
+- Recebimentos.
+- Pagamentos parciais.
+- Despesas.
+- Filtros.
+- Histórico.
+- Pendências.
+- Indicadores.
+- Resumo financeiro.
+
+## 6.9 Usuários
+
+- CRUD.
+- Perfis.
+- Associação a profissionais.
+- Ativação/desativação.
+- Gestão de acesso.
+- Redefinição de senha.
+
+## 6.10 Configurações
+
+- Dados do instituto.
+- Logo.
+- Telefone.
+- Endereço.
+- Fuso horário.
+- Preferências de agenda.
+- Mensagens de WhatsApp.
+- Configurações de segurança.
+- Auditoria administrativa autorizada.
+
+---
+
+# 7. BACKEND — REGRAS GERAIS
+
+Criar uma API REST versionada.
+
+**Base URL:**
+
+`/api/v1`
+
+**Desenvolvimento:**
+
+`http://localhost:3333/api/v1`
+
+**Swagger:**
+
+`http://localhost:3333/docs`
+
+## Padrões
+
+- JSON nas operações comuns.
+- Multipart para upload.
+- UUID para identificadores.
+- ISO 8601 para datas e horários.
+- UTC no armazenamento.
+- America/Sao_Paulo para regras locais e exibição.
+- Valores monetários em centavos.
+- Paginação nas listagens.
+- Filtros e ordenações validados.
+- Schemas Zod.
+- Respostas padronizadas.
+- Logs estruturados.
+- Autorização por endpoint e por recurso.
+
+## Resposta individual
+
+```json
+{
+  "data": {
+    "id": "uuid"
+  }
+}
+```
+
+## Resposta de listagem
+
+```json
+{
+  "data": [],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 0,
+    "totalPages": 0
+  }
+}
+```
+
+## Erros
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Dados inválidos.",
+    "details": [],
+    "requestId": "req_123"
+  }
+}
+```
+
+Utilizar códigos HTTP corretos, incluindo 200, 201, 204, 400, 401, 403, 404, 409, 422, 429 e 500.
+
+Não retornar stack traces para o frontend em produção.
+
+---
+
+# 8. BANCO DE DADOS — MODELAGEM PRISMA
+
+Criar o banco utilizando PostgreSQL e Prisma.
+
+## Entidades principais
+
+### User
+
+- id
+- name
+- email
+- passwordHash
+- role
+- professionalId
+- active
+- createdAt
+- updatedAt
+
+### Session
+
+- id
+- userId
+- tokenHash
+- expiresAt
+- revokedAt
+- createdAt
+
+### Patient
+
+- id
+- fullName
+- birthDate
+- cpf
+- phoneE164
+- email
+- address
+- active
+- createdAt
+- updatedAt
+
+### PatientContact
+
+- id
+- patientId
+- fullName
+- relationship
+- phoneE164
+- isLegalGuardian
+- isPrimaryContact
+
+### Professional
+
+- id
+- name
+- specialty
+- registrationCouncil
+- registrationNumber
+- phoneE164
+- color
+- active
+- createdAt
+- updatedAt
+
+### Service
+
+- id
+- name
+- description
+- durationMinutes
+- priceCents
+- active
+
+### ProfessionalService
+
+- id
+- professionalId
+- serviceId
+
+### ProfessionalSchedule
+
+- id
+- professionalId
+- dayOfWeek
+- startTime
+- endTime
+- active
+
+### ScheduleException
+
+- id
+- professionalId
+- date
+- startTime
+- endTime
+- type
+- reason
+
+### CalendarBlock
+
+- id
+- professionalId
+- type
+- startsAt
+- endsAt
+- allDay
+- recurrenceRuleId
+- cancelledAt
+- createdBy
+- createdAt
+
+### RecurrenceRule
+
+- id
+- frequency
+- interval
+- daysOfWeek
+- startsOn
+- endsOn
+- occurrenceCount
+
+### AppointmentSeries
+
+- id
+- patientId
+- professionalId
+- serviceId
+- recurrenceRuleId
+- createdAt
+
+### Appointment
+
+- id
+- patientId
+- professionalId
+- serviceId
+- seriesId
+- startsAt
+- endsAt
+- status
+- internalNote
+- createdBy
+- createdAt
+- updatedAt
+
+### AppointmentHistory
+
+- id
+- appointmentId
+- action
+- previousValues
+- newValues
+- actorId
+- createdAt
+
+### FormTemplate
+
+- id
+- title
+- description
+- type
+- specialty
+- status
+- createdBy
+- createdAt
+
+### FormVersion
+
+- id
+- templateId
+- version
+- schema
+- publishedAt
+- createdAt
+
+### FormLink
+
+- id
+- patientId
+- appointmentId
+- formVersionId
+- tokenHash
+- expiresAt
+- usedAt
+- revokedAt
+- createdAt
+
+### FormResponse
+
+- id
+- formLinkId
+- patientId
+- appointmentId
+- formVersionId
+- answers
+- submittedAt
+
+### MedicalRecord
+
+- id
+- patientId
+- professionalId
+- appointmentId
+- evolution
+- observations
+- recordedAt
+- createdBy
+
+### MedicalRecordAddendum
+
+- id
+- medicalRecordId
+- authorId
+- reason
+- content
+- createdAt
+
+### FileAttachment
+
+- id
+- patientId
+- medicalRecordId
+- storageKey
+- originalName
+- mimeType
+- sizeBytes
+- checksum
+- createdBy
+- createdAt
+
+### Charge
+
+- id
+- patientId
+- appointmentId
+- description
+- amountCents
+- dueDate
+- status
+- cancelledAt
+
+### Payment
+
+- id
+- chargeId
+- amountCents
+- method
+- paidAt
+- reversedAt
+- createdBy
+
+### Expense
+
+- id
+- description
+- category
+- amountCents
+- dueDate
+- paidAt
+- status
+
+### ClinicSettings
+
+- id
+- name
+- phoneE164
+- address
+- timezone
+- logoFileId
+
+### WhatsAppTemplate
+
+- id
+- type
+- content
+- active
+
+### AuditLog
+
+- id
+- actorId
+- action
+- resource
+- resourceId
+- metadata
+- createdAt
+
+## Relacionamentos
+
+- Um paciente possui vários agendamentos.
+- Um paciente possui vários contatos e responsáveis.
+- Um profissional possui vários agendamentos.
+- Um profissional pode executar vários serviços.
+- Um serviço pode pertencer a vários profissionais.
+- Um profissional possui várias configurações de disponibilidade.
+- Um profissional possui vários bloqueios.
+- Um agendamento pode pertencer a uma série recorrente.
+- Um paciente possui várias anamneses.
+- Um formulário possui várias versões.
+- Uma versão de formulário possui várias respostas.
+- Um agendamento pode possuir questionários pré-consulta.
+- Um paciente possui vários registros clínicos.
+- Um registro clínico pode possuir complementações e anexos.
+- Um agendamento pode gerar uma cobrança.
+- Uma cobrança pode receber vários pagamentos.
+
+## Regras do banco
+
+- Utilizar chaves estrangeiras.
+- Criar índices para pesquisas frequentes.
+- Criar índice em `patientId`.
+- Criar índice em `professionalId`.
+- Criar índices para data e status dos agendamentos.
+- Garantir unicidade de e-mail dos usuários.
+- Evitar exclusão física de registros clínicos.
+- Preservar histórico financeiro.
+- Utilizar transações para operações relacionadas.
+- Criar migrations versionadas.
+
+Criar constraints e verificações para impedir valores monetários negativos, intervalos inválidos e referências inconsistentes.
+
+## Concorrência
+
+A agenda precisa evitar que duas requisições simultâneas reservem o mesmo horário.
+
+Não depender exclusivamente de:
+
+1. Consultar disponibilidade.
+2. Verificar que está livre.
+3. Inserir agendamento.
+
+Essa sequência isolada pode permitir conflitos concorrentes.
+
+Implementar controle transacional de concorrência por profissional e intervalo, utilizando os recursos adequados do PostgreSQL.
+
+Considerar restrições de sobreposição no banco e tratamento dos bloqueios dentro da mesma estratégia de consistência.
+
+---
+
+# 9. BACKEND — AUTENTICAÇÃO
+
+Implementar autenticação real.
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| POST | /auth/login |
+| POST | /auth/refresh |
+| POST | /auth/logout |
+| GET | /auth/me |
+| PATCH | /auth/password |
+
+## Requisitos
+
+- Senhas com hash seguro.
+- Argon2id ou algoritmo equivalente adequado.
+- Cookies HttpOnly.
+- Secure em produção.
+- SameSite configurado.
+- Tokens com expiração.
+- Renovação de sessão.
+- Revogação de sessão.
+- Proteção CSRF.
+- Rate limiting.
+- Mensagens de erro sem revelar a existência de contas.
+- Logs de tentativas relevantes.
+- Proteção contra força bruta.
+
+Não armazenar tokens de autenticação em localStorage.
+
+## Perfis
+
+```typescript
+type Role =
+  | "ADMIN"
+  | "RECEPTION"
+  | "PROFESSIONAL";
+```
+
+O frontend poderá ocultar menus por perfil, mas a API deverá verificar toda autorização.
+
+## Regras clínicas
+
+O administrador não deverá ter acesso automático a prontuários apenas por possuir perfil administrativo.
+
+O profissional deverá possuir autorização específica para acessar os registros de um paciente.
+
+A recepção não deverá consultar o conteúdo clínico.
+
+Implementar essas verificações no Service Layer, com políticas centralizadas e verificáveis.
+
+---
+
+# 10. BACKEND — PACIENTES
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /patients |
+| POST | /patients |
+| GET | /patients/:id |
+| PATCH | /patients/:id |
+| GET | /patients/:id/contacts |
+| POST | /patients/:id/contacts |
+| PATCH | /patients/:id/contacts/:contactId |
+| DELETE | /patients/:id/contacts/:contactId |
+
+## Regras
+
+- Validar nome obrigatório.
+- Validar datas.
+- Validar CPF informado, quando aplicável.
+- Normalizar telefone.
+- Impedir referências inválidas.
+- Detectar possíveis duplicidades cadastrais.
+- Permitir inativação.
+- Preservar históricos.
+- Paginar resultados.
+- Aplicar permissões.
+- Não devolver dados clínicos nas listagens administrativas.
+
+Não excluir permanentemente pacientes com prontuários por uma operação comum de interface.
+
+---
+
+# 11. BACKEND — PROFISSIONAIS E SERVIÇOS
+
+## Profissionais
+
+| Método | Endpoint |
+|---|---|
+| GET | /professionals |
+| POST | /professionals |
+| GET | /professionals/:id |
+| PATCH | /professionals/:id |
+| GET | /professionals/:id/schedule |
+| PUT | /professionals/:id/schedule |
+
+## Serviços
+
+| Método | Endpoint |
+|---|---|
+| GET | /services |
+| POST | /services |
+| GET | /services/:id |
+| PATCH | /services/:id |
+
+## Regras
+
+- Um serviço pode estar vinculado a vários profissionais.
+- Um profissional pode realizar vários serviços.
+- Cada serviço possui duração.
+- Cada serviço possui preço de referência.
+- Um profissional inativo não recebe novos agendamentos.
+- Um serviço inativo não recebe novos agendamentos.
+- Informações históricas permanecem intactas.
+- Mudanças de preço não alteram cobranças já emitidas.
+
+Implementar consultas para retornar somente serviços oferecidos por determinado profissional.
+
+---
+
+# 12. BACKEND — MOTOR DE DISPONIBILIDADE
+
+Criar um Service dedicado:
+
+`AvailabilityService`
+
+Esse serviço será responsável por determinar horários realmente disponíveis.
+
+## Dados considerados
+
+1. Expediente semanal.
+2. Exceções de expediente.
+3. Almoço.
+4. Bloqueios avulsos.
+5. Bloqueios recorrentes.
+6. Férias.
+7. Feriados configurados.
+8. Agendamentos existentes.
+9. Duração do serviço.
+10. Status dos eventos.
+11. Fuso horário.
+
+## Endpoint
+
+`GET /appointments/availability`
+
+Parâmetros:
+
+- professionalId.
+- serviceId.
+- date.
+
+## Exemplo de resposta
+
+```json
+{
+  "data": {
+    "date": "2026-10-26",
+    "professionalId": "uuid",
+    "slots": [
+      {
+        "startsAt": "2026-10-26T08:00:00-03:00",
+        "endsAt": "2026-10-26T08:50:00-03:00"
+      },
+      {
+        "startsAt": "2026-10-26T09:00:00-03:00",
+        "endsAt": "2026-10-26T09:50:00-03:00"
+      }
+    ]
+  }
+}
+```
+
+## Algoritmo
+
+1. Buscar configuração semanal.
+2. Aplicar exceções.
+3. Montar intervalos de expediente.
+4. Subtrair bloqueios.
+5. Subtrair agendamentos que ocupam horário.
+6. Considerar duração do serviço.
+7. Gerar horários válidos.
+8. Ordenar por início.
+9. Devolver os intervalos.
+
+Utilizar comparação de intervalos semiabertos `[início, fim)` para permitir eventos consecutivos sem sobreposição.
+
+A disponibilidade exibida é apenas informativa. O backend deverá validar novamente no momento de gravar o agendamento.
+
+---
+
+# 13. BACKEND — AGENDA E AGENDAMENTOS
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /appointments |
+| POST | /appointments |
+| GET | /appointments/:id |
+| PATCH | /appointments/:id |
+| GET | /appointments/availability |
+| POST | /appointments/:id/confirm |
+| POST | /appointments/:id/cancel |
+| POST | /appointments/:id/reschedule |
+| POST | /appointments/:id/start |
+| POST | /appointments/:id/complete |
+| POST | /appointments/:id/no-show |
+| GET | /appointments/:id/whatsapp-draft |
+
+## Criar agendamento
+
+Request:
+
+```json
+{
+  "patientId": "uuid",
+  "professionalId": "uuid",
+  "serviceId": "uuid",
+  "startsAt": "2026-10-26T14:00:00-03:00",
+  "internalNote": ""
+}
+```
+
+## Regras
+
+- Validar paciente.
+- Validar profissional.
+- Validar serviço.
+- Verificar associação entre profissional e serviço.
+- Calcular duração.
+- Calcular horário final.
+- Validar expediente.
+- Verificar bloqueios.
+- Verificar agendamentos existentes.
+- Executar criação com proteção transacional contra conflitos.
+- Registrar autoria.
+- Atualizar indicadores derivados.
+
+## Reagendamento
+
+Ao reagendar:
+
+- Consultar registro atual.
+- Verificar autorização.
+- Validar novo intervalo.
+- Verificar conflitos.
+- Preservar histórico anterior.
+- Atualizar agendamento.
+- Registrar auditoria.
+
+Caso o novo horário esteja ocupado, retornar `409 CONFLICT`.
+
+## Cancelamento
+
+- Preservar atendimento.
+- Alterar status.
+- Registrar motivo.
+- Registrar usuário.
+- Registrar data.
+- Liberar horário para novos agendamentos.
+
+## Status
+
+```typescript
+type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "IN_PROGRESS"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
+```
+
+Implementar transições válidas entre estados.
+
+Não permitir alterações arbitrárias que contradigam o fluxo de atendimento.
+
+---
+
+# 14. BACKEND — BLOQUEIOS DE AGENDA
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /calendar-blocks |
+| POST | /calendar-blocks |
+| GET | /calendar-blocks/:id |
+| PATCH | /calendar-blocks/:id |
+| DELETE | /calendar-blocks/:id |
+
+## Tipos
+
+- LUNCH.
+- BREAK.
+- DAY_OFF.
+- VACATION.
+- HOLIDAY.
+- MEETING.
+- ABSENCE.
+- PERSONAL.
+- OTHER.
+
+## Regras
+
+- Não permitir início maior ou igual ao término.
+- Não permitir intervalos inválidos.
+- Respeitar profissional.
+- Permitir múltiplos profissionais quando autorizado.
+- Permitir dia inteiro.
+- Permitir bloqueio avulso.
+- Permitir recorrência semanal.
+- Permitir exceções.
+- Permitir edição individual ou da série.
+- Registrar histórico.
+- Não apagar consultas previamente existentes.
+
+Se um bloqueio entrar em conflito com consultas já agendadas, retornar os conflitos para resolução.
+
+Não cancelar atendimentos automaticamente.
+
+## Exemplo de almoço
+
+```json
+{
+  "professionalId": "uuid",
+  "type": "LUNCH",
+  "startTime": "12:00",
+  "endTime": "13:00",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": [1, 2, 3, 4, 5]
+  }
+}
+```
+
+O backend deverá expandir as ocorrências dentro do intervalo consultado e disponibilizar os bloqueios para o calendário.
+
+---
+
+# 15. BACKEND — RECORRÊNCIA DE CONSULTAS
+
+Criar um módulo responsável por séries de agendamentos.
+
+## Endpoints adicionais
+
+| Método | Endpoint |
+|---|---|
+| POST | /appointment-series |
+| GET | /appointment-series/:id |
+| PATCH | /appointment-series/:id |
+| POST | /appointment-series/:id/cancel |
+
+## Escopos
+
+- SINGLE.
+- FUTURE.
+- ALL.
+
+## Regras
+
+- Suportar repetição semanal.
+- Suportar quantidade definida de sessões.
+- Suportar data final.
+- Calcular todas as ocorrências.
+- Validar conflitos individualmente.
+- Pré-visualizar conflitos.
+- Não criar série parcialmente sem tratamento explícito.
+- Permitir exceções por ocorrência.
+- Preservar sessões já concluídas.
+- Não alterar registros clínicos quando uma série for modificada.
+
+Criar transações apropriadas para operações sobre múltiplas ocorrências.
+
+---
+
+# 16. BACKEND — ANAMNESES E QUESTIONÁRIOS
+
+Utilizar um único mecanismo de formulários.
+
+Tipos:
+
+- ANAMNESIS.
+- PRE_CONSULTATION.
+
+## Templates
+
+| Método | Endpoint |
+|---|---|
+| GET | /anamnesis-templates |
+| POST | /anamnesis-templates |
+| GET | /anamnesis-templates/:id |
+| PATCH | /anamnesis-templates/:id |
+| POST | /anamnesis-templates/:id/publish |
+
+Complementar com duplicação, versionamento e arquivamento.
+
+## Regras dos modelos
+
+- Rascunhos podem ser editados.
+- Modelos publicados não devem ser sobrescritos.
+- Alterações em publicados geram nova versão.
+- Respostas históricas referenciam a versão original.
+- Rascunhos não geram links públicos.
+- Formulários arquivados permanecem consultáveis conforme permissão.
+
+## Perguntas
+
+Suportar:
+
+- TEXT.
+- TEXTAREA.
+- NUMBER.
+- DATE.
+- RADIO.
+- SELECT.
+- CHECKBOX.
+
+Validar obrigatoriedade, tipos e opções.
+
+Não confiar nas respostas enviadas pelo frontend.
+
+---
+
+# 17. BACKEND — LINKS PRÉ-CONSULTA
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| POST | /patients/:id/anamnesis-links |
+| GET | /patients/:id/anamnesis-links |
+| POST | /appointments/:id/questionnaire-links |
+| GET | /appointments/:id/questionnaire-links |
+| POST | /anamnesis-links/:id/revoke |
+| GET | /public/anamnesis/:token |
+| POST | /public/anamnesis/:token/responses |
+| GET | /patients/:id/anamneses |
+| GET | /anamneses/:id |
+| GET | /appointments/:id/questionnaire-responses |
+
+Todos esses endpoints deverão utilizar o mesmo serviço interno de formulários e links.
+
+Não criar mecanismos independentes de tokens.
+
+## Geração do link
+
+O backend deverá:
+
+1. Verificar usuário autorizado.
+2. Validar paciente.
+3. Validar agendamento quando houver.
+4. Verificar formulário publicado.
+5. Identificar a versão do formulário.
+6. Gerar token criptograficamente seguro.
+7. Armazenar somente o hash do token.
+8. Definir validade.
+9. Retornar URL pública.
+
+## Página pública
+
+A API pública deverá devolver somente as informações necessárias para preencher o formulário.
+
+Não expor:
+
+- Prontuários.
+- Outros agendamentos.
+- Histórico clínico.
+- Dados financeiros.
+- Identificadores internos desnecessários.
+
+## Envio
+
+O backend deverá:
+
+- Validar token.
+- Verificar expiração.
+- Verificar revogação.
+- Verificar utilização anterior.
+- Validar respostas.
+- Registrar data.
+- Vincular paciente.
+- Vincular agendamento.
+- Preservar versão.
+- Marcar link como utilizado.
+- Impedir envio duplicado em requisições concorrentes.
+- Registrar auditoria relevante.
+
+## Estados
+
+- NOT_REQUESTED.
+- PENDING.
+- COMPLETED.
+- EXPIRED.
+- REVOKED.
+
+O frontend deverá apresentar o status correspondente.
+
+## Segurança
+
+Aplicar:
+
+- Limitação de tentativas.
+- Tokens imprevisíveis.
+- Proteção contra enumeração.
+- Tratamento genérico de links inválidos.
+- Proteção de dados sensíveis.
+- Verificação adicional de identidade quando exigida.
+- Uso único.
+- Expiração.
+
+---
+
+# 18. BACKEND — WHATSAPP MANUAL
+
+Não utilizar WhatsApp Business API.
+
+Não criar bot de mensagens.
+
+Não armazenar sessão do WhatsApp Web.
+
+## Endpoint
+
+`GET /appointments/:id/whatsapp-draft`
+
+## Tipos
+
+- CONFIRMATION.
+- REMINDER.
+- CANCELLATION.
+- QUESTIONNAIRE.
+
+## Funcionamento
+
+O backend deverá:
+
+1. Buscar dados administrativos autorizados.
+2. Validar telefone.
+3. Buscar modelo de mensagem.
+4. Substituir variáveis permitidas.
+5. Retornar telefone e texto.
+
+O frontend montará o link `wa.me` e abrirá a conversa.
+
+**O envio permanece manual.**
+
+O sistema não deverá marcar automaticamente o atendimento como confirmado apenas porque a conversa foi aberta.
+
+---
+
+# 19. BACKEND — PRONTUÁRIOS
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /patients/:id/medical-records |
+| POST | /patients/:id/medical-records |
+| GET | /medical-records/:id |
+| POST | /medical-records/:id/addenda |
+| GET | /medical-records/:id/attachments |
+| POST | /medical-records/:id/attachments |
+
+## Regras
+
+- Verificar autorização clínica.
+- Validar paciente.
+- Validar profissional.
+- Vincular atendimento, quando aplicável.
+- Registrar autoria a partir da sessão.
+- Registrar horário.
+- Preservar histórico.
+- Não permitir exclusão comum.
+- Não substituir silenciosamente evoluções finalizadas.
+- Permitir complementação auditável.
+- Registrar acessos relevantes.
+- Proteger anexos.
+
+O backend não deverá confiar no `professionalId` enviado pelo cliente para determinar quem está registrando uma evolução.
+
+A identidade do autor deverá ser obtida da sessão autenticada.
+
+## Requisito regulatório
+
+Antes da operação com dados clínicos reais, validar:
+
+- Regras de guarda.
+- Integridade.
+- Autoria.
+- Assinatura aplicável.
+- Retenção.
+- Sigilo profissional.
+- Normas específicas das profissões atendidas.
+
+Não presumir que um CRUD comum equivale a um prontuário eletrônico juridicamente adequado.
+
+---
+
+# 20. BACKEND — ARQUIVOS
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| POST | /files |
+| GET | /files/:id |
+| GET | /files/:id/download |
+
+## Funcionalidades
+
+- Upload autorizado.
+- Metadados no PostgreSQL.
+- Arquivos em diretório privado ou serviço de armazenamento privado.
+- Referência por identificador.
+- Download autorizado.
+- Validação de MIME real.
+- Limite de tamanho.
+- Proteção contra nomes maliciosos.
+- Verificação de integridade.
+- Registro de autoria.
+- Backup externo.
+
+Não servir anexos clínicos diretamente de pastas públicas.
+
+O armazenamento deverá ficar fora do diretório público do frontend.
+
+Permitir inicialmente PDF, JPG, JPEG e PNG, com limites configuráveis.
+
+---
+
+# 21. BACKEND — FINANCEIRO
+
+## Cobranças
+
+| Método | Endpoint |
+|---|---|
+| GET | /finance/charges |
+| POST | /finance/charges |
+| GET | /finance/charges/:id |
+| PATCH | /finance/charges/:id |
+| POST | /finance/charges/:id/cancel |
+| GET | /patients/:id/charges |
+
+## Pagamentos
+
+| Método | Endpoint |
+|---|---|
+| GET | /finance/charges/:id/payments |
+| POST | /finance/charges/:id/payments |
+| POST | /finance/payments/:id/reverse |
+
+## Despesas
+
+| Método | Endpoint |
+|---|---|
+| GET | /finance/expenses |
+| POST | /finance/expenses |
+| GET | /finance/expenses/:id |
+| PATCH | /finance/expenses/:id |
+| POST | /finance/expenses/:id/cancel |
+
+## Resumo
+
+`GET /finance/summary`
+
+## Regras
+
+- Valores em centavos.
+- Pagamentos parciais.
+- Saldo calculado.
+- Cobranças pendentes.
+- Pagamentos auditáveis.
+- Estornos preservados.
+- Despesas registradas.
+- Filtros por período.
+- Dados financeiros restritos por perfil.
+- Operações financeiras consistentes em transações.
+
+Não permitir que um pagamento exceda o saldo sem uma regra explícita.
+
+Não excluir silenciosamente pagamentos realizados.
+
+O MVP não processará pagamentos online e não emitirá notas fiscais.
+
+---
+
+# 22. BACKEND — DASHBOARD
+
+## Endpoint
+
+`GET /dashboard/summary`
+
+## Indicadores
+
+- Atendimentos do dia.
+- Atendimentos confirmados.
+- Agendamentos pendentes.
+- Cancelamentos.
+- Ausências.
+- Pacientes ativos.
+- Questionários pendentes.
+- Receita recebida.
+- Valores a receber.
+
+## Regras
+
+- Calcular indicadores utilizando dados reais do banco.
+- Respeitar período solicitado.
+- Respeitar permissões.
+- Não devolver financeiro para usuários sem autorização.
+- Evitar consultas desnecessariamente pesadas.
+- Adicionar índices e otimizações quando necessário.
+
+O frontend não deverá calcular indicadores críticos a partir de listas paginadas incompletas.
+
+---
+
+# 23. BACKEND — USUÁRIOS
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /users |
+| POST | /users |
+| GET | /users/:id |
+| PATCH | /users/:id |
+| POST | /users/:id/activate |
+| POST | /users/:id/deactivate |
+
+## Regras
+
+- Apenas administradores autorizados podem gerenciar usuários.
+- E-mail único.
+- Senha nunca devolvida.
+- Associação de profissional válida.
+- Desativação revoga sessões.
+- Registros históricos permanecem atribuídos ao usuário original.
+- Permissões verificadas no backend.
+
+Não permitir que usuários comuns elevem o próprio perfil.
+
+---
+
+# 24. BACKEND — CONFIGURAÇÕES
+
+## Endpoints
+
+| Método | Endpoint |
+|---|---|
+| GET | /settings/clinic |
+| PATCH | /settings/clinic |
+| GET | /settings/whatsapp-templates |
+| PATCH | /settings/whatsapp-templates/:id |
+
+## Regras
+
+- Apenas perfis autorizados podem editar.
+- Validar telefone.
+- Validar fuso horário.
+- Registrar alterações administrativas.
+- Preservar valores anteriores relevantes.
+- Aplicar templates de WhatsApp sem execução automática.
+
+---
+
+# 25. BACKEND — AUDITORIA
+
+## Endpoint
+
+`GET /admin/audit-logs`
+
+## Registrar
+
+- Login e falhas relevantes.
+- Alterações de permissões.
+- Cadastro e edição de profissionais.
+- Reagendamentos.
+- Cancelamentos.
+- Alterações em bloqueios.
+- Publicação de formulários.
+- Acesso e alterações relevantes em prontuários.
+- Inclusão de complementações clínicas.
+- Estornos financeiros.
+- Alterações administrativas sensíveis.
+
+## Campos
+
+- ID do evento.
+- Usuário responsável.
+- Tipo de ação.
+- Recurso.
+- Identificador do recurso.
+- Data.
+- Informações auxiliares não sensíveis.
+
+Não registrar senhas, tokens, respostas clínicas completas ou conteúdo desnecessário nos logs.
+
+Proteger os logs contra alteração não autorizada.
+
+---
+
+# 26. DOCUMENTAÇÃO SWAGGER
+
+Implementar:
+
+- `@fastify/swagger`
+- `@fastify/swagger-ui`
+- Integração de schemas Zod.
+- OpenAPI 3.1.
+
+## Endereço de desenvolvimento
+
+`http://localhost:3333/docs`
+
+## Requisitos
+
+Cada rota deverá documentar:
+
+- Método HTTP.
+- Caminho.
+- Descrição.
+- Tags por módulo.
+- Parâmetros.
+- Body.
+- Responses.
+- Possíveis erros.
+- Requisitos de autenticação.
+- Regras de autorização.
+- Exemplos JSON.
+
+## Organização
+
+Tags sugeridas:
+
+- Auth.
+- Users.
+- Patients.
+- Professionals.
+- Services.
+- Appointments.
+- Availability.
+- Calendar Blocks.
+- Anamnesis.
+- Medical Records.
+- Files.
+- Finance.
+- Dashboard.
+- Settings.
+- Audit.
+
+## Contrato como fonte de verdade
+
+Utilizar schemas Zod compartilhados ou sincronizados com a documentação OpenAPI.
+
+Não manter contratos divergentes manualmente.
+
+Gerar tipos do frontend a partir da especificação quando apropriado.
+
+Criar teste que verifique se os schemas documentados permanecem compatíveis com as respostas dos endpoints.
+
+Restringir ou desabilitar a interface interativa do Swagger em produção, conforme a política de segurança.
+
+---
+
+# 27. SEGURANÇA DO BACKEND
+
+Aplicar controles de segurança desde o início.
+
+## Autenticação e autorização
+
+- Sessões seguras.
+- Cookies protegidos.
+- Rate limiting.
+- Controle de permissões.
+- Revogação.
+- Proteção CSRF.
+- Validação de entradas.
+- Proteção contra enumeração de recursos.
+
+## Banco
+
+- Usuário de banco com privilégios mínimos.
+- PostgreSQL sem acesso público direto.
+- Credenciais em variáveis de ambiente.
+- Migrations controladas.
+- Transações.
+- Backups.
+- Testes de restauração.
+
+## Arquivos
+
+- Armazenamento privado.
+- Download autenticado.
+- Autorização por recurso.
+- Validação de tipos.
+- Limites de upload.
+- Integridade dos arquivos.
+
+## API
+
+- HTTPS.
+- Headers de segurança.
+- CORS restrito.
+- Validação de origem quando aplicável.
+- Sanitização de logs.
+- Limitação de requisições.
+- Erros sem exposição de detalhes internos.
+
+## LGPD
+
+Dados de saúde são sensíveis e exigem proteção apropriada.
+
+Implementar minimização de dados, segregação de permissões, rastreabilidade e políticas adequadas de retenção.
+
+A conformidade legal e profissional deverá ser avaliada antes do uso real do sistema.
+
+---
+
+# 28. BACKEND — TESTES AUTOMATIZADOS
+
+Utilizar Vitest e Fastify inject.
+
+## Testes unitários
+
+Testar Services sem depender de interface gráfica.
+
+### Pacientes
+
+- Campos obrigatórios.
+- Normalização de contatos.
+- Dados inválidos.
+- Inativação.
+
+### Agenda
+
+- Agendamento válido.
+- Profissional inexistente.
+- Serviço inválido.
+- Fora do expediente.
+- Sobreposição.
+- Almoço.
+- Férias.
+- Bloqueio recorrente.
+- Reagendamento.
+- Cancelamento.
+
+### Formulários
+
+- Modelo em rascunho.
+- Publicação.
+- Nova versão.
+- Campo obrigatório.
+- Resposta inválida.
+- Token expirado.
+- Token revogado.
+- Envio duplicado.
+
+### Financeiro
+
+- Cobrança.
+- Pagamento parcial.
+- Quitação.
+- Estorno.
+- Saldo insuficiente.
+- Cálculo de indicadores.
+
+### Prontuários
+
+- Autorização.
+- Registro.
+- Complementação.
+- Preservação do histórico.
+- Tentativa de acesso indevido.
+
+## Testes de integração
+
+Utilizar PostgreSQL de testes separado.
+
+Validar:
+
+- Foreign keys.
+- Migrations.
+- Consultas Prisma.
+- Transações.
+- Concorrência de agendamentos.
+- Restrições de autorização.
+- Operações financeiras.
+- Persistência de formulários.
+
+Nunca executar testes destrutivos contra o banco de produção.
+
+## Testes de API
+
+Validar:
+
+- HTTP status.
+- Response JSON.
+- Paginação.
+- Filtros.
+- Erros.
+- Permissões.
+- Schemas OpenAPI.
+
+---
+
+# 29. TESTES END-TO-END
+
+Utilizar Playwright para validar os fluxos principais.
+
+## Fluxo 1 — Paciente e agendamento
+
+Criar paciente → cadastrar consulta → verificar agenda → verificar dashboard.
+
+## Fluxo 2 — Almoço recorrente
+
+Configurar almoço → criar bloqueio → consultar disponibilidade → impedir consulta conflitante.
+
+## Fluxo 3 — Reagendamento
+
+Criar atendimento → reagendar → verificar mudança → tentar horário ocupado → preservar agendamento original.
+
+## Fluxo 4 — Questionário
+
+Criar formulário → publicar → gerar link → preencher → enviar → consultar respostas autorizadas.
+
+## Fluxo 5 — Prontuário
+
+Abrir paciente autorizado → registrar evolução fictícia → consultar histórico → criar complemento.
+
+## Fluxo 6 — Financeiro
+
+Criar cobrança → pagamento parcial → quitação → atualizar indicadores.
+
+## Fluxo 7 — Permissões
+
+Entrar como recepção → tentar acessar prontuário → confirmar bloqueio da API.
+
+Entrar como profissional autorizado → consultar registros permitidos.
+
+## Fluxo 8 — Responsividade
+
+Validar desktop, tablet e celular.
+
+---
+
+# 30. ORACLE CLOUD — IMPLANTAÇÃO SEM DOCKER
+
+O sistema será hospedado em uma máquina virtual Linux.
+
+## Estrutura
+
+```text
+Oracle Cloud Compute
+│
+├── Caddy
+│   ├── Frontend React
+│   └── Proxy /api
+│
+├── PM2
+│   └── Backend Fastify
+│
+├── PostgreSQL
+│
+└── Armazenamento privado
+```
+
+## Etapas
+
+1. Provisionar instância adequada.
+2. Configurar Ubuntu.
+3. Atualizar sistema operacional.
+4. Criar usuário administrativo sem privilégios excessivos.
+5. Configurar acesso SSH por chave.
+6. Configurar firewall e regras da OCI.
+7. Instalar Node.js.
+8. Instalar PostgreSQL.
+9. Criar banco e usuário dedicados.
+10. Instalar PM2.
+11. Instalar Caddy.
+12. Publicar frontend compilado.
+13. Publicar backend.
+14. Configurar variáveis de ambiente.
+15. Executar migrations.
+16. Configurar domínio.
+17. Configurar HTTPS.
+18. Configurar backups.
+19. Configurar monitoramento.
+20. Executar testes de homologação.
+
+## Portas
+
+- 80: HTTP para redirecionamento HTTPS.
+- 443: HTTPS público.
+- 22: SSH restrito.
+- 3333: Backend acessível somente localmente.
+- 5432: PostgreSQL acessível somente localmente ou por rede privada autorizada.
+
+Nunca publicar diretamente a porta do banco na internet.
+
+## Caddy
+
+Configurar:
+
+- Servir arquivos compilados do frontend.
+- Fallback para React Router.
+- Proxy reverso para `/api/v1`.
+- HTTPS.
+- Headers de segurança.
+- Compressão quando apropriada.
+
+## PM2
+
+Configurar:
+
+- Nome da aplicação.
+- Inicialização automática.
+- Reinício controlado.
+- Logs.
+- Limites de memória.
+- Processo executado com usuário de serviço apropriado.
+
+## Produção
+
+Não considerar os recursos Always Free automaticamente adequados para prontuários.
+
+Validar disponibilidade, dimensionamento, persistência, monitoramento, backups, continuidade e recuperação antes de hospedar dados reais.
+
+---
+
+# 31. BACKUPS E RECUPERAÇÃO
+
+Implementar uma estratégia que proteja:
+
+- Banco PostgreSQL.
+- Anexos clínicos.
+- Configurações necessárias para restauração.
+
+## Requisitos
+
+- Backup automático.
+- Cópia fora da instância principal.
+- Criptografia.
+- Retenção definida.
+- Verificação de integridade.
+- Teste de restauração.
+- Monitoramento de falhas.
+- Procedimento de recuperação documentado.
+
+Backups do banco e arquivos precisam ser consistentes.
+
+Definir RPO e RTO aceitáveis com o Instituto Muraro antes da implantação definitiva.
+
+Não considerar um backup funcional até executar restauração em ambiente controlado.
+
+---
+
+# 32. AMBIENTES
+
+Criar separação clara entre:
+
+## Desenvolvimento
+
+- Dados fictícios.
+- API local.
+- Banco local ou de desenvolvimento.
+- Swagger habilitado.
+- Logs detalhados sem informações sensíveis.
+
+## Homologação
+
+- Ambiente isolado.
+- Dados sintéticos.
+- Testes de integração.
+- Validação com a equipe.
+- Configurações próximas às de produção.
+
+## Produção
+
+- Dados reais.
+- Controles de acesso efetivos.
+- HTTPS.
+- Backups.
+- Logs.
+- Monitoramento.
+- Sem dados de demonstração.
+- Swagger protegido.
+- Segredos fora do repositório.
+
+Não utilizar a mesma base de dados para produção e testes.
+
+---
+
+# 33. MIGRAÇÃO DO SISTEMA ATUAL
+
+O Instituto Muraro utilizará o novo sistema para substituir uma plataforma existente.
+
+Antes da implantação:
+
+1. Identificar o sistema atual.
+2. Verificar formas de exportação.
+3. Identificar pacientes.
+4. Identificar profissionais.
+5. Identificar agendamentos futuros.
+6. Identificar documentos.
+7. Avaliar prontuários históricos.
+8. Avaliar dados financeiros.
+9. Planejar importação.
+10. Executar testes de integridade.
+
+A migração complexa de dados históricos não deve ser presumida como incluída sem avaliação.
+
+O sistema anterior só deverá ser desativado após validação da continuidade dos registros e das obrigações de guarda.
+
+---
+
+# 34. ORDEM DE DESENVOLVIMENTO
+
+## Fase 1 — Auditoria e arquitetura
+
+- Inspecionar frontend.
+- Confirmar stack.
+- Estruturar backend.
+- Criar Prisma.
+- Configurar PostgreSQL.
+- Configurar Swagger.
+- Definir schemas.
+- Estabelecer contratos.
+
+## Fase 2 — Base do backend
+
+- Autenticação.
+- Sessões.
+- Usuários.
+- Permissões.
+- Pacientes.
+- Profissionais.
+- Serviços.
+
+## Fase 3 — Agenda
+
+- Expediente.
+- AvailabilityService.
+- Bloqueios.
+- Recorrências.
+- Agendamentos.
+- Reagendamentos.
+- Histórico.
+- Integração com FullCalendar.
+
+## Fase 4 — Anamneses
+
+- Templates.
+- Perguntas.
+- Versões.
+- Publicação.
+- Links.
+- Tokens.
+- Página pública.
+- Respostas.
+
+## Fase 5 — Prontuários
+
+- Registros.
+- Evoluções.
+- Complementações.
+- Anexos.
+- Permissões clínicas.
+- Auditoria.
+
+## Fase 6 — Financeiro
+
+- Cobranças.
+- Pagamentos.
+- Despesas.
+- Resumos.
+- Integração com dashboard.
+
+## Fase 7 — Administração
+
+- Configurações.
+- Templates WhatsApp.
+- Logs.
+- Usuários.
+- Dashboard.
+
+## Fase 8 — Integração frontend/backend
+
+- Substituir MSW pela API real.
+- Validar tipos.
+- Corrigir divergências.
+- Testar autenticação.
+- Testar permissões.
+- Testar dados compartilhados.
+- Testar erros.
+
+## Fase 9 — Qualidade
+
+- Testes unitários.
+- Testes de integração.
+- Testes E2E.
+- Auditoria de segurança.
+- Testes de responsividade.
+- Testes de concorrência.
+- Validação dos contratos Swagger.
+
+## Fase 10 — Implantação
+
+- Configurar Oracle Cloud.
+- Configurar PostgreSQL.
+- Configurar Caddy.
+- Configurar PM2.
+- Publicar aplicação.
+- Configurar backups.
+- Testar restauração.
+- Homologar com o cliente.
+
+---
+
+# 35. CRITÉRIOS DE ACEITE FULL-STACK
+
+O sistema só poderá ser considerado tecnicamente concluído quando:
+
+- Frontend navegar corretamente.
+- API REST estiver implementada.
+- PostgreSQL persistir os dados.
+- Prisma migrations funcionarem.
+- Login real estiver implementado.
+- Permissões forem aplicadas no backend.
+- Pacientes tiverem CRUD completo.
+- Profissionais tiverem CRUD completo.
+- Serviços tiverem CRUD completo.
+- Agenda funcionar.
+- Bloqueios impedirem conflitos.
+- Almoço recorrente funcionar.
+- Férias funcionarem.
+- Reagendamentos preservarem histórico.
+- Sessões recorrentes funcionarem.
+- Anamneses puderem ser criadas e respondidas.
+- Links individuais funcionarem.
+- Questionários tiverem expiração e revogação reais.
+- Prontuários preservarem registros.
+- Anexos tiverem armazenamento privado.
+- Financeiro estiver consistente.
+- Dashboard exibir informações derivadas do banco.
+- Swagger documentar as rotas.
+- Testes automatizados passarem.
+- Backups forem restauráveis.
+- Infraestrutura estiver validada.
+- Requisitos profissionais aplicáveis forem atendidos e homologados.
+
+A conclusão técnica não deverá ser declarada sem evidência dos testes correspondentes.
+
+---
+
+# 36. RELATÓRIO FINAL OBRIGATÓRIO
+
+Após cada fase, apresentar:
+
+| Módulo | Frontend | Backend | Banco | Testado | Pendências |
+|---|---|---|---|---|---|
+
+Também informar:
+
+- Arquivos criados.
+- Arquivos modificados.
+- Migrations executadas.
+- Endpoints implementados.
+- Schemas criados.
+- Testes realizados.
+- Resultado dos testes.
+- Erros encontrados.
+- Erros corrigidos.
+- Funcionalidades pendentes.
+- Estado da documentação Swagger.
+- Estado da integração frontend/backend.
+- Estado da implantação.
+
+Não ocultar pendências nem descrever mocks como operações reais.
+
+---
+
+# 37. LIMITES DO PROJETO
+
+Não incluir automaticamente:
+
+- Aplicativos nativos Android e iOS.
+- WhatsApp Business API.
+- Chatbot.
+- Mensagens automáticas.
+- Pagamento online.
+- Emissão de notas fiscais.
+- Integrações bancárias.
+- Integrações com convênios.
+- Relatórios avançados não previstos.
+- Migração complexa de históricos.
+- Funcionalidades clínicas específicas ainda não aprovadas.
+
+Esses recursos poderão ser avaliados separadamente.
+
+**Investimento preliminar de referência:** R$ 6.900.
+
+**Manutenção mensal sugerida:** R$ 397.
+
+Esses valores não constituem aprovação definitiva do escopo ampliado. O esforço técnico, a implantação, os requisitos clínicos, a migração e a operação precisam ser dimensionados antes do compromisso comercial.
+
+---
+
+# 38. RESULTADO FINAL ESPERADO
+
+Entregar um sistema de gestão clínica personalizado para o Instituto Muraro, com frontend e backend integrados e documentação técnica.
+
+O sistema deverá oferecer:
+
+- Agenda avançada.
+- Gestão de disponibilidade.
+- Bloqueios recorrentes.
+- Agendamentos recorrentes.
+- Cadastro de pacientes.
+- Gestão de profissionais.
+- Serviços.
+- Anamneses digitais.
+- Questionários pré-consulta.
+- Links e QR Codes.
+- WhatsApp manual.
+- Prontuários.
+- Controle financeiro.
+- Usuários e permissões.
+- Dashboard.
+- Auditoria.
+- Infraestrutura documentada.
+
+Todo o código deverá seguir os padrões de arquitetura definidos, com separação de responsabilidades, tratamento de erros, segurança e testes.
+
+**PRINCÍPIO FINAL: NÃO ENTREGAR APENAS TELAS OU ENDPOINTS ISOLADOS. ENTREGAR FLUXOS COMPLETOS, INTEGRADOS, TESTADOS E DOCUMENTADOS.**
+
+**ETH Tecnologia**  
+**Instituto Muraro — Prompt Master Full-Stack V4.0**
