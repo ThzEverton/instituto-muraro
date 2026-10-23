@@ -1,0 +1,33 @@
+name: Funcionalidade
+description: Requisito do sistema de fisioterapia
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objetivo e contexto
+      description: Qual problema clínico ou operacional resolve?
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critérios de aceite e testes
+      description: Liste passos verificáveis com dados sintéticos.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridade
+      options: ["P0 - bloqueia produção", "P1 - MVP", "P2 - melhoria"]
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidade
+      options:
+        - label: Não incluí dados reais de pacientes ou credenciais.
+          required: true
