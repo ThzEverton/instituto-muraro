@@ -326,7 +326,7 @@ export default function Page(){
     {label:'Versão',cell:t=>'v'+t.version},
     {label:'Situação',cell:t=><Badge tone={stateTone(t.status)}>{t.status}</Badge>},
     {label:'Disponibilidade',cell:t=><span>{t.status==='Publicado'?'Prévia disponível':'Em elaboração'}</span>}
-   ]} actions={t=><><PillButton title="Editar perguntas" onClick={()=>openForm('template',t)}><Edit3 size={16}/></PillButton><PillButton title="Abrir visão do paciente em outra página" onClick={()=>window.open(`/paciente?template=${encodeURIComponent(t.name)}&simulacao=1`,'_blank','noopener,noreferrer')}><Eye size={16}/></PillButton>{buttonArchive('template',t)}</>}/>
+   ]} actions={t=><><PillButton title="Editar perguntas" onClick={()=>openForm('template',t)}><Edit3 size={16}/></PillButton><PillButton title="Enviar link ao cliente pelo WhatsApp" onClick={()=>{const link=`${window.location.origin}/paciente?template=${encodeURIComponent(t.name)}&simulacao=1`;window.open(`https://wa.me/?text=${encodeURIComponent(`Instituto Muraro: acesse seu questionário neste link: ${link}`)}`,'_blank','noopener,noreferrer')}}><MessageCircle size={16}/></PillButton><PillButton title="Abrir visão do paciente em outra página" onClick={()=>window.open(`/paciente?template=${encodeURIComponent(t.name)}&simulacao=1`,'_blank','noopener,noreferrer')}><Eye size={16}/></PillButton>{buttonArchive('template',t)}</>}/>
   </section>
   <div className="m-info-row"><LockKeyhole size={17}/> Pré-visualizações são locais. Links externos individuais e envio real exigem autenticação e backend clínico seguro.</div>
  </>
