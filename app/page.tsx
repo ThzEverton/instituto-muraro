@@ -375,7 +375,7 @@ export default function Page(){
  </div>
  const activeTemplate=db.templates.find(t=>t.id===previewTemplateId)
  const demoPatient=db.patients.find(p=>p.active)
- const demoQuestionnaireLink=activeTemplate&&typeof window!=='undefined'?`${window.location.origin}/?questionario=${encodeURIComponent(activeTemplate.id)}&simulacao=1`:''
+ const demoQuestionnaireLink=activeTemplate&&typeof window!=='undefined'?`${window.location.origin}/paciente?template=${encodeURIComponent(activeTemplate.name)}&simulacao=1`:''
  const demoWhatsappText=activeTemplate?`Simulacao Instituto Muraro: ola ${demoPatient?.name||'paciente'}! Responda ao questionario ${activeTemplate.name}: ${demoQuestionnaireLink||'link demonstrativo'}`:''
  const mobileTemplatePreview=activeTemplate&&<Dialog title="Visao do paciente no celular" subtitle="Simulacao demonstrativa - respostas ficticias, sem transmissao clinica" onClose={()=>setPreviewTemplateId(null)} footer={<><button className="m-btn secondary" onClick={()=>setPreviewTemplateId(null)}>Fechar</button><button className="m-btn primary" onClick={()=>{setDemoResponsePatientId(demoPatient?.id||null);notify('Resposta ficticia registrada no paciente demonstrativo.');setDetailId(demoPatient?.id||null);setDetailTab('Avaliações');setPreviewTemplateId(null)}}><Check size={17}/> Concluir simulacao</button></>}>
   <div className="m-phone-demo"><div className="m-phone-status"><span>09:41</span><span>Paciente - link seguro</span></div><div className="m-phone-screen"><div className="m-demo-preview-header"><ClipboardList size={22}/><div><strong>{activeTemplate.name}</strong><small>Instituto Muraro - SIMULACAO</small></div></div>

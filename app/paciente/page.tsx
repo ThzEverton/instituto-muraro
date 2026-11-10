@@ -20,7 +20,7 @@ export default function PatientView() {
     setTemplateName(params.get('template') || 'Pré-avaliação fisioterapêutica')
   }, [])
 
-  const whatsappText = `Simulação Instituto Muraro: questionário preenchido por paciente fictício. Respostas: ${questions.map(q => `${q.label} ${responses[q.id]}`).join(' | ')}`
+  const whatsappText = `Simulação Instituto Muraro: acesse o questionário do paciente neste link: ${typeof window !== 'undefined' ? window.location.href : '/paciente?simulacao=1'} Respostas fictícias: ${questions.map(q => `${q.label} ${responses[q.id]}`).join(' | ')}`
 
   return <main className="patient-page">
     <header className="patient-topbar"><a href="/" className="patient-back"><ArrowLeft size={17}/> Voltar ao painel</a><span className="simulation-pill"><i/> SIMULAÇÃO</span></header>
