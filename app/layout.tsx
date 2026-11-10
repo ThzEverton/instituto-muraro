@@ -5,23 +5,23 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Instituto Muraro | Gestão em Fisioterapia',
   description: 'Demonstração de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
-  generator: 'v0.app',
+  generator: 'Instituto Muraro',
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: '/instituto-muraro-logo.png',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
+        url: '/instituto-muraro-logo.png',
         media: '(prefers-color-scheme: dark)',
       },
       {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
+        url: '/instituto-muraro-logo.png',
+        type: 'image/png',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/instituto-muraro-logo.png',
   },
 }
 
