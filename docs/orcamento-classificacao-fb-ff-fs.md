@@ -1,23 +1,24 @@
 # Muraro — orçamento por módulos
 
-Substitui a tabela anterior de 57 preços individuais. Total inicial R$ 0, nenhum módulo pré-selecionado e nenhuma inclusão automática. 11 módulos de implantação somam exatamente R$ 11.000; suporte opcional R$ 197/mês separado. Todos os 57 itens anteriores foram agrupados uma única vez, sem perda de escopo.
+Substitui a tabela anterior de 57 preços individuais. Total inicial R$ 0, nenhum módulo pré-selecionado e nenhuma inclusão automática. 11 módulos principais de implantação somam exatamente R$ 7.500; emissão de NFS-e integrada à prefeitura é um módulo opcional adicional de R$ 1.500 (total R$ 9.000 com tudo selecionado); suporte opcional R$ 100/mês separado. Todos os 57 itens anteriores foram agrupados uma única vez, sem perda de escopo.
 
 Classificação interna, não exibida à cliente: FB = função básica, FF = função fundamental, FS = função de saída. Cada módulo recebe a classificação predominante; isso não impede funções de outra categoria dentro dele. Esta documentação no repositório não é uma área privada autenticada.
 
 | Módulo | Classe | Preço |
 |---|---|---:|
-| Cadastros e configurações | FB | R$ 500 |
-| Agenda completa | FF | R$ 1400 |
-| Prontuário e acompanhamento clínico | FF | R$ 1500 |
-| Formulários e pré-consulta | FF | R$ 800 |
-| Planos, mensalidades e renovação | FF | R$ 900 |
-| Financeiro e comissões | FF | R$ 1400 |
-| WhatsApp e automações | FS | R$ 900 |
-| Estoque e frente de caixa | FF | R$ 1000 |
-| Contratos e assinatura externa | FS | R$ 500 |
-| Painel e relatórios gerenciais | FS | R$ 1300 |
-| Migração e implantação assistida | FF | R$ 800 |
-| Suporte e manutenção contínua | FF | R$ 197/mês |
+| Cadastros e configurações | FB | R$ 450 |
+| Agenda completa | FF | R$ 1200 |
+| Prontuário e acompanhamento clínico | FF | R$ 1400 |
+| Formulários e pré-consulta | FF | R$ 450 |
+| Planos, mensalidades e renovação | FF | R$ 550 |
+| Financeiro e comissões | FF | R$ 1200 |
+| WhatsApp e automações | FS | R$ 550 |
+| Estoque e frente de caixa | FF | R$ 500 |
+| Contratos e assinatura externa | FS | R$ 250 |
+| Painel e relatórios gerenciais | FS | R$ 300 |
+| Migração e implantação assistida | FF | R$ 650 |
+| Emissão de NFS-e integrada à prefeitura (opcional) | FS | R$ 1500 |
+| Suporte e manutenção contínua | FF | R$ 100/mês |
 
 ## Conteúdo dos módulos
 
@@ -87,10 +88,14 @@ Importação dos cadastros e histórico disponível, configuração inicial, tre
 
 Itens agrupados: Importar cadastros do sistema atual; Migrar prontuários, anexos e financeiro; Treinamento e implantação assistida.
 
+### Emissão de NFS-e integrada à prefeitura (opcional)
+
+Emissão e consulta de NFS-e diretamente no sistema, mediante integração municipal disponível para um município e um CNPJ. Depende de validação técnica de API, credenciais, regras fiscais e eventuais custos externos antes da contratação. Não inclui integração de pagamentos.
+
 ### Suporte e manutenção contínua
 
 Suporte e manutenção mensal. Canais, horários e limites de atendimento serão definidos na proposta. Cobrança recorrente opcional, fora do valor de implantação.
 
 Itens agrupados: Suporte e manutenção contínua.
 
-Sem pacote obrigatório. Segurança e preparação técnica fazem parte da implementação dos módulos escolhidos, sem custo oculto automático. Interdependências, custos externos e migração serão validados ao fechar o escopo. Mensagens pela API terceirizada da ETH. Sem maquininha/TEF ou APIs oficiais. Pagamentos e taxas manuais; nota fiscal e assinatura externas. Não somar novamente os preços da tabela anterior.
+Sem pacote obrigatório. Segurança e preparação técnica fazem parte da implementação dos módulos escolhidos, sem custo oculto automático. Interdependências, custos externos e migração serão validados ao fechar o escopo. Mensagens pela API terceirizada da ETH. Sem integração com bancos, gateways, maquininha ou TEF. Pagamentos e taxas registrados manualmente; emissão de nota fiscal pelo sistema somente com o módulo de integração municipal opcional. Contratos assinados por serviço externo. Não somar novamente os preços da tabela anterior.
