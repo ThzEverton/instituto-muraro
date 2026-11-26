@@ -11,6 +11,23 @@ jobs:
     name: TypeScript, build e testes
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: muraro_ci
+          POSTGRES_PASSWORD: muraro_ci_descartavel
+          POSTGRES_DB: muraro_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U muraro_ci -d muraro_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://muraro_ci:muraro_ci_descartavel@127.0.0.1:5432/muraro_ci
+      TESTAR_POSTGRES: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -22,6 +39,12 @@ jobs:
           cache: pnpm
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
+      - name: Gerar cliente Prisma
+        run: pnpm --dir backend banco:gerar
+      - name: Migrações PostgreSQL descartável
+        run: pnpm --dir backend banco:migrar
+      - name: UX Guardrails
+        run: pnpm ux:lint
       - name: Tipagem frontend
         run: pnpm exec tsc --noEmit
       - name: Build frontend

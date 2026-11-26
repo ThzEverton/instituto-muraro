@@ -4,12 +4,16 @@
     {
       "label": "Frontend: executar local",
       "type": "shell",
-      "command": "corepack pnpm dev --port 4173",
+      "command": "corepack pnpm dev --hostname 127.0.0.1 --port 4173",
       "options": {
         "cwd": "${workspaceFolder}"
       },
       "isBackground": true,
-      "problemMatcher": []
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
     },
     {
       "label": "Frontend: verificar TypeScript",
@@ -27,6 +31,36 @@
       "options": {
         "cwd": "${workspaceFolder}"
       },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: executar local",
+      "type": "shell",
+      "command": "docker compose -f compose.local.yaml up -d --wait; if ($LASTEXITCODE -ne 0) { exit 1 }; $config = docker compose -f compose.local.yaml config --format json | ConvertFrom-Json; $db = $config.services.postgres.environment; $env:DATABASE_URL = 'postgresql://{0}:{1}@127.0.0.1:5433/{2}' -f $db.POSTGRES_USER,$db.POSTGRES_PASSWORD,$db.POSTGRES_DB; $env:NODE_ENV = 'development'; $env:HOST = '127.0.0.1'; $env:PORT = '3333'; corepack pnpm --dir backend banco:migrar; if ($LASTEXITCODE -ne 0) { exit 1 }; corepack pnpm backend:dev",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": {
+          "executable": "powershell.exe",
+          "args": [
+            "-NoProfile",
+            "-Command"
+          ]
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always"
+      }
+    },
+    {
+      "label": "Muraro: iniciar local",
+      "dependsOn": [
+        "Backend: executar local",
+        "Frontend: executar local"
+      ],
+      "dependsOrder": "parallel",
       "problemMatcher": []
     }
   ]
