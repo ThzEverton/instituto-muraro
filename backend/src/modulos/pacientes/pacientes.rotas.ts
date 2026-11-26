@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
+import { telefoneWhatsApp } from '../comunicacao/comunicacao.servico.js'
 import { cadastroPaciente, consultaPacientes, edicaoPaciente } from './pacientes.validacao.js'
 
 const perfisAdministrativos = ['ADMINISTRADOR', 'RECEPCAO'] as const
@@ -71,9 +72,12 @@ export async function registrarRotasPacientes(aplicacao: FastifyInstance) {
     const existente = await prisma.paciente.findUnique({ where: { id }, select: { id: true } })
     if (!existente) return resposta.code(404).send({ erro: 'Paciente não encontrado' })
     const paciente = await prisma.$transaction(async (transacao) => {
+      await transacao.$queryRaw`SELECT id FROM pacientes WHERE id = ${id} FOR UPDATE`
+      const atual=await transacao.paciente.findUniqueOrThrow({where:{id}})
+      const revogar=validacao.data.ativo===false || ('whatsapp' in validacao.data && telefoneWhatsApp(validacao.data.whatsapp??null)!==telefoneWhatsApp(atual.whatsapp))
       const alterado = await transacao.paciente.update({
         where: { id },
-        data: dadosPaciente(validacao.data) as Prisma.PacienteUpdateInput,
+        data: { ...dadosPaciente(validacao.data), ...(revogar?{whatsappAutorizado:null,autorizadoWhatsAppEm:null}:{}) } as Prisma.PacienteUpdateInput,
       })
       await transacao.registroAuditoria.create({
         data: { usuarioId: requisicao.identidade!.id, acao: 'ATUALIZAR', entidade: 'paciente', entidadeId: id },

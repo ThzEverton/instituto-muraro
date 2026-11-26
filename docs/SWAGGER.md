@@ -8,7 +8,7 @@ Na raiz do projeto, com PostgreSQL local configurado, execute `corepack pnpm --d
 - OpenAPI JSON: http://localhost:3333/docs/json
 - OpenAPI YAML: http://localhost:3333/docs/yaml
 
-As 48 operações atuais são organizadas em dez grupos. A documentação representa o servidor operacional em `backend/src/servidor.ts`, não o servidor demonstrativo legado.
+As operações são organizadas por módulo. A lista e a cobertura são verificadas automaticamente nos testes. A documentação representa o servidor operacional em `backend/src/servidor.ts`, não o servidor demonstrativo legado.
 
 ## Autenticação
 

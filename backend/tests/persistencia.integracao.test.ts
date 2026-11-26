@@ -375,6 +375,42 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect((await post('contratos',{...payload,chaveOperacao:randomUUID(),renovacaoDeId:c.id,inicioEm:inicioNovo,primeiroVencimento:inicioNovo})).statusCode).toBe(409)
   })
 
+  it('gera fila sem duplicar e exige autorização de contato vigente', async () => {
+    const app=await aplicacaoPromessa
+    const headers={authorization:'Bearer '+tokenAdministrador}
+    const rota='/api/v1/comunicacao/'
+    const post=(url:string,payload:object={})=>app.inject({remoteAddress:'127.0.0.2',method:'POST',url:rota+url,headers,payload})
+    const patch=(url:string,payload:object={})=>app.inject({remoteAddress:'127.0.0.2',method:'PATCH',url:rota+url,headers,payload})
+    expect((await patch('regras/CONFIRMACAO_AGENDA',{ativa:true,antecedenciaDias:3,mensagem:'Olá {nome}, confirme {data} às {hora}.'})).statusCode).toBe(200)
+    expect((await app.inject({remoteAddress:'127.0.0.2',method:'PATCH',url:'/api/v1/pacientes/'+pacienteId,headers,payload:{whatsapp:'11900000000'}})).statusCode).toBe(200)
+    const inicio=new Date(Date.now()+86400000)
+    const ag=await prisma.agendamento.create({data:{pacienteId,profissionalId:profissionalIdAgenda,servicoId:servicoIdAgenda,inicioEm:inicio,fimEm:new Date(inicio.getTime()+3600000)}})
+    const itens=()=>prisma.mensagemComunicacao.findMany({where:{referenciaId:ag.id,tipo:'CONFIRMACAO_AGENDA'}})
+    expect((await post('gerar')).statusCode).toBe(200)
+    expect(await itens()).toHaveLength(0)
+    expect((await patch('pacientes/'+pacienteId+'/autorizacao',{aceita:true})).statusCode).toBe(200)
+    expect((await post('gerar')).statusCode).toBe(200)
+    expect((await post('gerar')).statusCode).toBe(200)
+    const fila=await itens()
+    expect(fila).toHaveLength(1)
+    const id=fila[0].id
+    const preparada=await post('fila/'+id+'/preparar')
+    expect(preparada.statusCode).toBe(200)
+    expect(preparada.json().dados.telefone).toBe('5511900000000')
+    expect(preparada.json().dados.mensagem).toContain('confirme')
+    expect((await app.inject({remoteAddress:'127.0.0.2',method:'PATCH',url:'/api/v1/pacientes/'+pacienteId,headers,payload:{whatsapp:'11900000001'}})).statusCode).toBe(200)
+    expect((await post('fila/'+id+'/preparar')).statusCode).toBe(409)
+    expect((await patch('pacientes/'+pacienteId+'/autorizacao',{aceita:true})).statusCode).toBe(200)
+    expect((await post('fila/'+id+'/preparar')).json().dados.telefone).toBe('5511900000001')
+    expect((await patch('fila/'+id+'/enviada')).statusCode).toBe(200)
+    expect((await patch('fila/'+id+'/enviada')).statusCode).toBe(409)
+    expect((await post('gerar')).statusCode).toBe(200)
+    expect(await itens()).toHaveLength(1)
+    expect((await itens())[0].situacao).toBe('ENVIADA_MANUALMENTE')
+    await patch('pacientes/'+pacienteId+'/autorizacao',{aceita:false})
+    await patch('regras/CONFIRMACAO_AGENDA',{ativa:false,antecedenciaDias:3,mensagem:'Olá {nome}, confirme {data} às {hora}.'})
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

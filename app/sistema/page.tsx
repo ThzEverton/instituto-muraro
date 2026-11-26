@@ -18,6 +18,8 @@ type Paciente = {
   observacoesAdministrativas: string | null
   formaAtendimento: string | null
   ativo: boolean
+  whatsappAutorizado: string | null
+  autorizadoWhatsAppEm: string | null
 }
 
 type Formulario = {
@@ -120,6 +122,12 @@ export default function Sistema() {
     }
   }
 
+  async function alterarAutorizacao(paciente:Paciente) {
+    const aceita=!paciente.autorizadoWhatsAppEm
+    if(!window.confirm(aceita?'Confirma que o paciente autorizou o contato por WhatsApp neste numero?':'Revogar a autorizacao de contato?'))return
+    try {await requisitar('comunicacao/pacientes/'+paciente.id+'/autorizacao',{method:'PATCH',body:JSON.stringify({aceita})});await carregar()}
+    catch(e){setErro(e instanceof Error?e.message:'Falha ao atualizar autorizacao')}
+  }
   function abrirNovo() {
     setFormulario(formularioVazio)
     setEdicaoId(null)
@@ -207,6 +215,7 @@ export default function Sistema() {
           <div className="flex gap-3">
             {autenticado && perfil === "ADMINISTRADOR" && <Link href="/sistema/prontuario" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Acessos clínicos</Link>}
             {autenticado && perfil === "ADMINISTRADOR" && <Link href="/sistema/financeiro" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Financeiro</Link>}
+            {autenticado && <Link href="/sistema/comunicacao" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Comunicacao</Link>}
             {autenticado && <Link href="/sistema/formularios" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Formulários</Link>}
             {autenticado && <Link href="/sistema/agenda" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Agenda</Link>}
             {autenticado && <Link href="/sistema/cadastros" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Profissionais e serviços</Link>}
@@ -245,6 +254,7 @@ export default function Sistema() {
                     <td>{paciente.ativo ? 'Ativo' : 'Inativo'}</td>
                     <td className="flex gap-2 py-3">
                       <button className="text-[#2b668f] underline" onClick={() => abrirEdicao(paciente)}>Editar</button>
+                      <button className="text-[#2b668f] underline" onClick={() => alterarAutorizacao(paciente)}>{paciente.autorizadoWhatsAppEm ? "Revogar WhatsApp" : "Autorizar WhatsApp"}</button>
                       <button className="text-[#2b668f] underline" onClick={() => alterarAtividade(paciente)}>{paciente.ativo ? 'Inativar' : 'Ativar'}</button>
                     </td>
                   </tr>

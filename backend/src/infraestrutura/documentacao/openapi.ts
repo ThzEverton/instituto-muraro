@@ -8,6 +8,7 @@ import { consultaAgenda, consultaDisponibilidade, edicaoAgendamento, entradaAgen
 import * as clinica from '../../modulos/prontuario/prontuario.validacao.js'
 import * as formulario from '../../modulos/formularios/formularios.validacao.js'
 
+import * as com from '../../modulos/comunicacao/comunicacao.validacao.js'
 import * as fin from '../../modulos/financeiro/financeiro.validacao.js'
 
 const id = z.string().min(1)
@@ -27,7 +28,7 @@ const pacienteMinimo = z.object({ id, nomeCompleto: texto, ativo: booleano })
 const paciente = pacienteMinimo.extend({
   cpf: texto.nullable(), dataNascimento: instante.nullable(), telefone: texto.nullable(), whatsapp: texto.nullable(), email: texto.nullable(), endereco: texto.nullable(),
   responsavelLegal: texto.nullable(), contatoEmergencia: texto.nullable(), observacoesAdministrativas: texto.nullable(), formaAtendimento: texto.nullable(),
-  criadoEm: instante, atualizadoEm: instante,
+  criadoEm: instante, atualizadoEm: instante, whatsappAutorizado:texto.nullable(), autorizadoWhatsAppEm:instante.nullable(),
 })
 const profissional = z.object({
   id, nome: texto, especialidade: texto, crefito: texto.nullable(), telefone: texto.nullable(), email: texto.nullable(), corAgenda: texto.nullable(),
@@ -50,6 +51,7 @@ const token = z.string().regex(/^[a-f0-9]{64}$/)
 const erro = z.object({ erro: texto })
 
 export const etiquetas = [
+  { name: 'Comunicacao', description: 'Autorizacoes e fila de mensagens para envio manual.' },
   { name: 'Planos', description: 'Planos, contratos, renovacoes e sessoes.' },
   { name: 'Financeiro', description: 'Cobrancas, recebimentos, despesas, taxas e comissoes.' },
   { name: 'Configuracao', description: 'Dados da clinica e parcerias.' },
@@ -184,6 +186,17 @@ registrar('PATCH','financeiro/comissoes/:id/pagar','Financeiro','Registrar repas
 registrar('GET','financeiro/relatorio','Financeiro','Resumo de caixa','Recebimentos, estornos, taxas, despesas, repasses e saldo por periodo de ate 367 dias. A receber refere-se a vencimentos no periodo.',admin,dados(relatorioFin),consulta(fin.consultaPeriodo),[400])
 registrar('GET','configuracao','Configuracao','Consultar dados da clinica','Retorna configuracao ou nulo se ainda nao cadastrada.',equipe,dados(configFin.nullable()))
 registrar('PATCH','configuracao','Configuracao','Salvar dados da clinica','Grava nome, telefone, email e endereco.',admin,dados(configFin),corpo(fin.configuracao,{nome:'Instituto de exemplo',telefone:null,email:null,endereco:null}),[400])
+
+const regraCom=z.object({tipo:com.tipo,ativa:booleano,antecedenciaDias:inteiro,mensagem:texto,atualizadoEm:instante})
+const mensagemCom=z.object({id,tipo:com.tipo,pacienteId:id,referenciaData:texto,situacao:z.enum(['PENDENTE','ENVIADA_MANUALMENTE','CANCELADA']),criadaEm:instante,enviadaEm:instante.nullable(),canceladaEm:instante.nullable(),paciente:z.object({nomeCompleto:texto})})
+registrar('GET','comunicacao/regras','Comunicacao','Listar regras','Lista regras de lembretes configuradas.',admin,lista(regraCom))
+registrar('PATCH','comunicacao/regras/:tipo','Comunicacao','Configurar regra','Tipos CONFIRMACAO_AGENDA, LEMBRETE_AGENDA, COBRANCA e RENOVACAO. Variaveis nome, data, hora e clinica. Desativada ate habilitacao explicita.',admin,dados(regraCom),corpo(com.regra,{ativa:false,antecedenciaDias:1,mensagem:'Ola {nome}, lembrete da {clinica} para {data}.'}),[400])
+registrar('PATCH','comunicacao/pacientes/:id/autorizacao','Comunicacao','Registrar autorizacao de contato','Registra permissao para o numero atual, ou revoga. Alteracao do numero invalida a permissao.',equipe,dados(z.object({id,whatsappAutorizado:texto.nullable(),autorizadoWhatsAppEm:instante.nullable()})),corpo(com.autorizacao,{aceita:true}),[400,404])
+registrar('POST','comunicacao/gerar','Comunicacao','Gerar fila','Gera pendencias de regras ativas e pacientes autorizados, sem duplicar. Recepcao gera somente agenda. Nao envia mensagens.',equipe,dados(z.object({criadas:inteiro})),corpo(com.gerar,{}),[400],200)
+registrar('GET','comunicacao/fila','Comunicacao','Consultar fila','Lista pendencias e historico paginados. Recepcao ve apenas agenda.',equipe,pagFin(mensagemCom),consulta(com.consulta),[400])
+registrar('POST','comunicacao/fila/:id/preparar','Comunicacao','Preparar mensagem','Revalida permissao, regra e evento; retorna telefone e texto para envio manual. Nao confirma entrega.',equipe,dados(z.object({telefone:texto,mensagem:texto})),undefined,[404,409],200)
+registrar('PATCH','comunicacao/fila/:id/enviada','Comunicacao','Registrar envio manual','Registra confirmacao do operador, nao comprova entrega por provedor.',equipe,dados(z.object({id,situacao:z.literal('ENVIADA_MANUALMENTE')})),undefined,[404,409])
+registrar('PATCH','comunicacao/fila/:id/cancelar','Comunicacao','Cancelar pendencia','Cancela mensagem ainda pendente.',equipe,dados(z.object({id,situacao:z.literal('CANCELADA')})),undefined,[404,409])
 
 type Esquema = Record<string, unknown>
 function json(schema: z.ZodType): Esquema {

@@ -87,6 +87,9 @@ model Paciente {
   cobrancas                   Cobranca[]
   vinculosClinicos            VinculoClinico[]
   contratosPlano ContratoPlano[]
+  whatsappAutorizado String? @map("whatsapp_autorizado")
+  autorizadoWhatsAppEm DateTime? @map("autorizado_whatsapp_em")
+  mensagens MensagemComunicacao[]
 
   @@index([nomeCompleto])
   @@map("pacientes")
@@ -493,4 +496,43 @@ model ConfiguracaoClinica {
   endereco String?
   atualizadoEm DateTime @updatedAt @map("atualizado_em")
   @@map("configuracoes_clinica")
+}
+
+
+enum TipoComunicacao {
+  CONFIRMACAO_AGENDA
+  LEMBRETE_AGENDA
+  COBRANCA
+  RENOVACAO
+}
+
+enum SituacaoComunicacao {
+  PENDENTE
+  ENVIADA_MANUALMENTE
+  CANCELADA
+}
+
+model RegraComunicacao {
+  tipo TipoComunicacao @id
+  ativa Boolean @default(false)
+  antecedenciaDias Int @map("antecedencia_dias")
+  mensagem String
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  @@map("regras_comunicacao")
+}
+
+model MensagemComunicacao {
+  id String @id @default(cuid())
+  chave String @unique
+  tipo TipoComunicacao
+  pacienteId String @map("paciente_id")
+  referenciaId String @map("referencia_id")
+  referenciaData String @map("referencia_data")
+  situacao SituacaoComunicacao @default(PENDENTE)
+  criadaEm DateTime @default(now()) @map("criada_em")
+  enviadaEm DateTime? @map("enviada_em")
+  canceladaEm DateTime? @map("cancelada_em")
+  paciente Paciente @relation(fields:[pacienteId],references:[id],onDelete:Restrict)
+  @@index([situacao,tipo,criadaEm])
+  @@map("mensagens_comunicacao")
 }

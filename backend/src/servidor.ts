@@ -14,6 +14,7 @@ import { registrarRotasAgenda } from './modulos/agenda/agenda.rotas.js'
 import { registrarRotasProntuario } from './modulos/prontuario/prontuario.rotas.js'
 
 import { registrarRotasFormularios } from './modulos/formularios/formularios.rotas.js'
+import { registrarRotasComunicacao } from './modulos/comunicacao/comunicacao.rotas.js'
 import { registrarRotasFinanceiro } from './modulos/financeiro/financeiro.rotas.js'
 import { etiquetas, esquemaDocumentacao, rotasDocumentadas } from './infraestrutura/documentacao/openapi.js'
 
@@ -75,6 +76,7 @@ export async function criarAplicacao() {
   await registrarRotasProntuario(aplicacao)
   await registrarRotasFormularios(aplicacao)
   await registrarRotasFinanceiro(aplicacao)
+  await registrarRotasComunicacao(aplicacao)
   aplicacao.addHook('onClose', async () => prisma.$disconnect())
   return aplicacao
 }
