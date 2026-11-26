@@ -15,6 +15,7 @@ type Agendamento = {
   id: string; pacienteId: string; profissionalId: string; servicoId: string;
   inicioEm: string; fimEm: string; situacao: string; salaId?: string | null; serieId?: string | null;
 }
+type Ausencia = { id: string; profissionalId: string | null; dataInicio: string; dataFim: string; motivo: string }
 type Bloqueio = { id: string; profissionalId: string; inicioEm: string; fimEm: string; tipo: string }
 type Sala = { id: string; nome: string; capacidade: number; ativo: boolean }
 type Formulario = { pacienteId: string; profissionalId: string; servicoId: string; inicioEm: string }
@@ -45,6 +46,9 @@ export default function Agenda() {
   const [salaAberta, setSalaAberta] = useState(false)
   const [nomeSala, setNomeSala] = useState('')
   const [capacidadeSala, setCapacidadeSala] = useState(1)
+  const [ausencias, setAusencias] = useState<Ausencia[]>([])
+  const [ausenciaAberta, setAusenciaAberta] = useState(false)
+  const [formAusencia, setFormAusencia] = useState({ profissionalId: '', dataInicio: '', dataFim: '', motivo: '' })
   const [bloqueios, setBloqueios] = useState<Bloqueio[]>([])
   const [bloqueioAberto, setBloqueioAberto] = useState(false)
   const [formBloqueio, setFormBloqueio] = useState({ profissionalId: '', inicioEm: '', fimEm: '', tipo: '' })
@@ -75,6 +79,7 @@ export default function Agenda() {
     const resultadoBloqueios = await api<{ dados: Bloqueio[] }>('agenda/bloqueios?' + parametros)
     setAgendamentos(resultado.dados)
     setBloqueios(resultadoBloqueios.dados)
+    setAusencias((await api<{ dados: Ausencia[] }>('agenda/ausencias?' + parametros)).dados)
   }, [filtroProfissional])
   useEffect(() => { carregarCadastros().catch((falha) => setErro(falha.message)) }, [carregarCadastros])
   useEffect(() => { if (intervalo) carregarAgenda(intervalo).catch((falha) => setErro(falha.message)) }, [intervalo, filtroProfissional, carregarAgenda])
@@ -89,7 +94,12 @@ export default function Agenda() {
     id: 'bloqueio:' + item.id, title: 'Bloqueado: ' + item.tipo,
     start: item.inicioEm, end: item.fimEm, backgroundColor: '#64748b',
     editable: false, extendedProps: { situacao: 'BLOQUEADO' },
-  }))], [agendamentos, bloqueios, pacientes, profissionais, servicos])
+  })), ...ausencias.map(item => ({
+    id: 'ausencia:' + item.id,
+    title: item.motivo + (item.profissionalId ? ' - ' + (profissionais.find(p => p.id === item.profissionalId)?.nome ?? 'Profissional') : ' - Clinica fechada'),
+    start: item.dataInicio, end: new Date(Date.parse(item.dataFim) + 86400000).toISOString().slice(0,10),
+    allDay: true, editable: false, backgroundColor: '#9f1239',
+  }))], [agendamentos, bloqueios, ausencias, pacientes, profissionais, servicos])
 
   function datasAlteradas(dados: DatesSetArg) {
     setIntervalo({ inicio: dados.start.toISOString(), fim: dados.end.toISOString() })
@@ -105,6 +115,11 @@ export default function Agenda() {
     setAberto(true); setErro('')
   }
   function clicarEvento(dados: EventClickArg) {
+    if (dados.event.id.startsWith('ausencia:')) {
+      const item = ausencias.find(a => a.id === dados.event.id.slice(9))
+      if (item && window.confirm('Remover: ' + item.motivo + '?')) void removerAusencia(item.id)
+      return
+    }
     if (dados.event.id.startsWith('bloqueio:')) {
       const item = bloqueios.find((b) => b.id === dados.event.id.slice(8))
       if (item && window.confirm('Remover bloqueio: ' + item.tipo + '?')) void desbloquear(item.id)
@@ -127,6 +142,22 @@ export default function Agenda() {
       setSalas((await api<{ dados: Sala[] }>('salas')).dados)
       setSalaAberta(false)
     } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao cadastrar sala') }
+    finally { setCarregando(false) }
+  }
+  async function removerAusencia(id: string) {
+    setErro('')
+    try {
+      await api('agenda/ausencias/' + id, { method: 'PATCH' })
+      if (intervalo) await carregarAgenda(intervalo)
+    } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao reabrir periodo') }
+  }
+  async function salvarAusencia(evento: FormEvent) {
+    evento.preventDefault(); setErro(''); setCarregando(true)
+    try {
+      await api('agenda/ausencias', { method: 'POST', body: JSON.stringify({ ...formAusencia, profissionalId: formAusencia.profissionalId || null }) })
+      setAusenciaAberta(false)
+      if (intervalo) await carregarAgenda(intervalo)
+    } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao salvar periodo') }
     finally { setCarregando(false) }
   }
   async function desbloquear(id: string) {
@@ -214,11 +245,24 @@ export default function Agenda() {
           setErro(''); setFormBloqueio({ profissionalId: filtroProfissional || profissionais[0]?.id || '', inicioEm: '', fimEm: '', tipo: '' }); setBloqueioAberto(true)
         }}>Bloquear horário</button>
         <button type="button" className="mb-4 ml-2 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setNomeSala(''); setCapacidadeSala(1); setErro(''); setSalaAberta(true) }}>Cadastrar sala</button>
+        <button type="button" className="mb-4 ml-2 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setErro(''); setFormAusencia({ profissionalId: filtroProfissional, dataInicio: '', dataFim: '', motivo: '' }); setAusenciaAberta(true) }}>Feriados e férias</button>
         <FullCalendar plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} initialView="timeGridWeek" locale="pt-br"
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' }}
-          allDaySlot={false} selectable editable events={eventos} datesSet={datasAlteradas}
+          allDaySlot={true} selectable editable events={eventos} datesSet={datasAlteradas}
           select={selecionar} eventClick={clicarEvento} eventDrop={mover} height="auto" />
       </section>
+      {ausenciaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+        <form onSubmit={salvarAusencia} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+          <h2 className="text-xl font-semibold">Feriados e férias</h2>
+          <label className="block text-sm">Aplicar a<select className="mt-1 w-full rounded-lg border p-2" value={formAusencia.profissionalId} onChange={e => setFormAusencia(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Toda a clínica</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+          <label className="block text-sm">Primeiro dia<input required type="date" className="mt-1 w-full rounded-lg border p-2" value={formAusencia.dataInicio} onChange={e => setFormAusencia(a => ({ ...a, dataInicio: e.target.value }))} /></label>
+          <label className="block text-sm">Último dia (inclusive)<input required type="date" min={formAusencia.dataInicio} className="mt-1 w-full rounded-lg border p-2" value={formAusencia.dataFim} onChange={e => setFormAusencia(a => ({ ...a, dataFim: e.target.value }))} /></label>
+          <label className="block text-sm">Motivo<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={formAusencia.motivo} onChange={e => setFormAusencia(a => ({ ...a, motivo: e.target.value }))} /></label>
+          <p className="text-xs text-slate-600">Atendimentos existentes precisam ser reagendados antes de bloquear o período.</p>
+          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAusenciaAberta(false)} className="rounded-lg border px-4 py-2">Fechar</button><button disabled={carregando} className="rounded-lg bg-[#142b49] px-4 py-2 text-white">Salvar</button></div>
+        </form>
+      </div>}
       {salaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
         <form onSubmit={salvarSala} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
           <h2 className="text-xl font-semibold">Cadastrar sala</h2>

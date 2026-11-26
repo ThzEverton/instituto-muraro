@@ -102,6 +102,7 @@ model Profissional {
   bloqueios     BloqueioAgenda[]
   servicos      ProfissionalServico[]
   expedientes   ExpedienteProfissional[]
+  ausencias     AusenciaAgenda[]
 
   @@map("profissionais")
 }
@@ -184,6 +185,20 @@ model Agendamento {
   @@index([salaId, inicioEm, fimEm])
   @@index([serieId])
   @@map("agendamentos")
+}
+
+model AusenciaAgenda {
+  id             String        @id @default(cuid())
+  profissionalId String?       @map("profissional_id")
+  dataInicio     String        @map("data_inicio") @db.VarChar(10)
+  dataFim        String        @map("data_fim") @db.VarChar(10)
+  motivo         String
+  ativo          Boolean       @default(true)
+  criadoEm       DateTime      @default(now()) @map("criado_em")
+  profissional   Profissional? @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+
+  @@index([profissionalId, dataInicio, dataFim])
+  @@map("ausencias_agenda")
 }
 
 model BloqueioAgenda {

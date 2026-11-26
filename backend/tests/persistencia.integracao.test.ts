@@ -175,6 +175,27 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect(await prisma.agendamento.count({ where: { pacienteId: outro.id } })).toBe(0)
   })
 
+  it('fecha a agenda em feriados e durante ferias', async () => {
+    const aplicacao = await aplicacaoPromessa
+    const headers = { authorization: 'Bearer ' + tokenAdministrador }
+    const inicioEm = '2027-01-04T09:00:00-03:00'
+    const fimEm = '2027-01-04T09:50:00-03:00'
+    const url = '/api/v1/agenda/disponibilidade?' + new URLSearchParams({ profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda, inicioEm })
+    const consultar = () => aplicacao.inject({ method: 'GET', url, headers })
+    const ausencia = await aplicacao.inject({ method: 'POST', url: '/api/v1/agenda/ausencias', headers, payload: { profissionalId: null, dataInicio: '2027-01-04', dataFim: '2027-01-04', motivo: 'Feriado sintetico' } })
+    expect(ausencia.statusCode).toBe(201)
+    expect((await consultar()).json().dados.disponivel).toBe(false)
+    const recusado = await aplicacao.inject({ method: 'POST', url: '/api/v1/agendamentos', headers, payload: { pacienteId, profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda, inicioEm, fimEm } })
+    expect(recusado.statusCode).toBe(409)
+    expect((await aplicacao.inject({ method: 'PATCH', url: '/api/v1/agenda/ausencias/' + ausencia.json().dados.id, headers })).statusCode).toBe(200)
+    expect((await consultar()).json().dados.disponivel).toBe(true)
+    const ferias = await aplicacao.inject({ method: 'POST', url: '/api/v1/agenda/ausencias', headers, payload: { profissionalId: profissionalIdAgenda, dataInicio: '2027-01-03', dataFim: '2027-01-09', motivo: 'Ferias sinteticas' } })
+    expect(ferias.statusCode).toBe(201)
+    expect((await consultar()).json().dados.disponivel).toBe(false)
+    expect((await aplicacao.inject({ method: 'PATCH', url: '/api/v1/agenda/ausencias/' + ferias.json().dados.id, headers })).statusCode).toBe(200)
+    expect((await consultar()).json().dados.disponivel).toBe(true)
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

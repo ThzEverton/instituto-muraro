@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
-import { consultaAgenda, consultaDisponibilidade, dataLocal, edicaoAgendamento, entradaAgendamento, entradaBloqueio, entradaSala, entradaSerie } from './agenda.validacao.js'
+import { consultaAgenda, consultaDisponibilidade, dataLocal, edicaoAgendamento, entradaAgendamento, entradaBloqueio, entradaSala, entradaSerie, entradaAusencia, diasDoPeriodo, inicioDiaLocal, diaSeguinte } from './agenda.validacao.js'
 import { ConflitoAgenda, DadosAgendaInvalidos, verificarEGravarAgendamento, criarSerie } from './agenda.servico.js'
 
 const perfis = ['ADMINISTRADOR', 'RECEPCAO'] as const
@@ -14,6 +14,50 @@ function erroAgenda(erro: unknown, resposta: { code: (status: number) => { send:
 }
 
 export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
+  aplicacao.get('/api/v1/agenda/ausencias', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
+    const r = consultaAgenda.safeParse(requisicao.query)
+    if (!r.success) return resposta.code(400).send({ erro: 'Periodo invalido' })
+    const { inicioEm, fimEm, profissionalId } = r.data
+    const dados = await prisma.ausenciaAgenda.findMany({ where: {
+      ativo: true, dataInicio: { lte: dataLocal(new Date(fimEm)).data }, dataFim: { gte: dataLocal(new Date(inicioEm)).data },
+      ...(profissionalId ? { OR: [{ profissionalId: null }, { profissionalId }] } : {}),
+    }, orderBy: { dataInicio: 'asc' } })
+    return { dados }
+  })
+  aplicacao.post('/api/v1/agenda/ausencias', { preHandler: exigirPerfis(['ADMINISTRADOR']) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const r = entradaAusencia.safeParse(requisicao.body)
+    if (!r.success) return resposta.code(400).send({ erro: 'Periodo ou motivo invalido' })
+    const dados = r.data
+    try {
+      const criado = await prisma.$transaction(async t => {
+        for (const dia of diasDoPeriodo(dados.dataInicio, dados.dataFim)) {
+          await t.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('agenda:dia'), hashtext(${dia}))::text`
+        }
+        if (dados.profissionalId && !(await t.profissional.findUnique({ where: { id: dados.profissionalId } }))?.ativo) throw new DadosAgendaInvalidos('Profissional inexistente ou inativo')
+        const agendado = await t.agendamento.findFirst({ where: {
+          ...(dados.profissionalId ? { profissionalId: dados.profissionalId } : {}),
+          situacao: { in: ['AGENDADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO', 'EM_ATENDIMENTO'] },
+          inicioEm: { lt: inicioDiaLocal(diaSeguinte(dados.dataFim)) }, fimEm: { gt: inicioDiaLocal(dados.dataInicio) },
+        } })
+        if (agendado) throw new ConflitoAgenda('Existem atendimentos no periodo. Reagende ou cancele antes de fechar a agenda.')
+        const item = await t.ausenciaAgenda.create({ data: dados })
+        await t.registroAuditoria.create({ data: { usuarioId: requisicao.identidade!.id, acao: 'BLOQUEAR_PERIODO', entidade: 'ausencia_agenda', entidadeId: item.id } })
+        return item
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 30000 })
+      return resposta.code(201).send({ dados: criado })
+    } catch (e) { return erroAgenda(e, resposta) }
+  })
+  aplicacao.patch('/api/v1/agenda/ausencias/:id', { preHandler: exigirPerfis(['ADMINISTRADOR']) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const { id } = requisicao.params as { id: string }
+    const dados = await prisma.$transaction(async t => {
+      const atualizado = await t.ausenciaAgenda.updateMany({ where: { id, ativo: true }, data: { ativo: false } })
+      if (!atualizado.count) return null
+      await t.registroAuditoria.create({ data: { usuarioId: requisicao.identidade!.id, acao: 'DESBLOQUEAR_PERIODO', entidade: 'ausencia_agenda', entidadeId: id } })
+      return t.ausenciaAgenda.findUnique({ where: { id } })
+    })
+    if (!dados) return resposta.code(404).send({ erro: 'Periodo nao encontrado' })
+    return { dados }
+  })
   aplicacao.get('/api/v1/salas', { preHandler: exigirPerfis([...perfis]) }, async () => {
     return { dados: await prisma.sala.findMany({ orderBy: { nome: 'asc' } }) }
   })
@@ -65,7 +109,11 @@ export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
       item.inicioMinuto <= localInicio.minuto && item.fimMinuto >= localFim.minuto)
     const compativel = agendamentos.every((item) => item.servicoId === servicoId)
     const vagasRestantes = vinculo && dentroDoExpediente && !bloqueios && compativel ? Math.max(0, servico.capacidade - agendamentos.length) : 0
-    let vagas = vagasRestantes
+    const ausencia = await prisma.ausenciaAgenda.findFirst({ where: {
+      ativo: true, dataInicio: { lte: localInicio.data }, dataFim: { gte: localInicio.data },
+      OR: [{ profissionalId: null }, { profissionalId }],
+    } })
+    let vagas = ausencia ? 0 : vagasRestantes
     if (salaId) {
       const sala = await prisma.sala.findUnique({ where: { id: salaId } })
       const ocupacao = await prisma.agendamento.count({ where: { salaId, situacao: { in: ['AGENDADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO', 'EM_ATENDIMENTO'] }, inicioEm: { lt: fim }, fimEm: { gt: inicio } } })

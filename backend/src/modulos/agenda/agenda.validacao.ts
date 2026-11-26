@@ -64,3 +64,38 @@ export const consultaDisponibilidade = z.object({
   servicoId: z.string().min(1),
   inicioEm: z.iso.datetime({ offset: true }),
 })
+
+
+export const entradaAusencia = z.object({
+  profissionalId: z.string().min(1).nullable(),
+  dataInicio: z.iso.date(),
+  dataFim: z.iso.date(),
+  motivo: z.string().trim().min(2).max(100),
+}).strict().refine(d => {
+  const dias = (Date.parse(d.dataFim) - Date.parse(d.dataInicio)) / 86400000
+  return dias >= 0 && dias <= 90
+}, 'Periodo invalido ou superior a 91 dias')
+
+export function diasDoPeriodo(dataInicio: string, dataFim: string) {
+  const dias: string[] = []
+  for (let dia = Date.parse(dataInicio); dia <= Date.parse(dataFim); dia += 86400000) {
+    dias.push(new Date(dia).toISOString().slice(0, 10))
+  }
+  return dias
+}
+
+// Converte meia-noite civil em Sao Paulo, inclusive se houver mudanca de offset.
+export function inicioDiaLocal(dia: string) {
+  const alvo = Date.parse(dia + 'T00:00:00Z')
+  let instante = alvo
+  for (let i = 0; i < 3; i++) {
+    const local = dataLocal(new Date(instante))
+    const representado = Date.parse(local.data + 'T00:00:00Z') + local.minuto * 60000
+    instante += alvo - representado
+  }
+  return new Date(instante)
+}
+
+export function diaSeguinte(dia: string) {
+  return new Date(Date.parse(dia) + 86400000).toISOString().slice(0, 10)
+}

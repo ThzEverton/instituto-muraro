@@ -56,3 +56,7 @@ Próximos blocos: recorrência, locais e capacidade por local, feriados/férias;
 ## Salas e recorrencia
 
 Criados modelos Sala e SerieAgendamento, migracao aditiva e integracao da agenda com cadastro de sala e repeticao de 2 a 52 sessoes em intervalos de 1 a 4 semanas. Criacao de serie em transacao atomica; conflitos de paciente e capacidade da sala validados no servidor. Migracao aplicada somente ao PostgreSQL local de testes. 14 testes passaram, incluindo reversao integral de serie com conflito; builds e tipagem aprovados. Pendentes: edicao/inativacao de salas, cancelamento em lote da serie, feriados/ferias e teste visual.
+
+## Feriados e ferias
+
+AusenciaAgenda implementa periodos inclusivos de ate 91 dias, globais ou por profissional. A agenda exibe o periodo, bloqueia novos atendimentos e disponibilidade, e exige reagendamento/cancelamento de atendimentos existentes antes do fechamento. Criacao e reabertura restritas ao administrador e auditadas. Migracao aplicada no banco sintetico local. 15 testes aprovados, builds e tipagem aprovados. Feriados sao cadastrados manualmente, sem calendario externo. Pendente homologacao visual e restantes funcoes clinicas/financeiras.

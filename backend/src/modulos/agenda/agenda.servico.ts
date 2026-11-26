@@ -26,6 +26,12 @@ async function gravarNaTransacao(
   if (inicio.data !== fim.data || dados.fimEm <= dados.inicioEm) {
     throw new DadosAgendaInvalidos('Agendamento deve ocorrer em um único dia')
   }
+    await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('agenda:dia'), hashtext(${inicio.data}))::text`
+    const ausencia = await transacao.ausenciaAgenda.findFirst({ where: {
+      ativo: true, dataInicio: { lte: inicio.data }, dataFim: { gte: inicio.data },
+      OR: [{ profissionalId: null }, { profissionalId: dados.profissionalId }],
+    } })
+    if (ausencia) throw new ConflitoAgenda('Agenda fechada: ' + ausencia.motivo)
     // Serializa alterações da agenda do mesmo profissional e dia.
     await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${dados.profissionalId}), hashtext(${inicio.data}))::text`
     await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'paciente:' + dados.pacienteId}), hashtext(${inicio.data}))::text`
