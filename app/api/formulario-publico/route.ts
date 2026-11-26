@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { origemPermitida } from '@/lib/origem-requisicao'
 
 export async function POST(req: NextRequest) {
   const acao = req.nextUrl.searchParams.get('acao')
   if (acao !== 'consultar' && acao !== 'enviar') return NextResponse.json({ erro: 'Rota indisponível' }, { status: 404 })
-  const origem = req.headers.get('origin')
-  if (origem && origem !== req.nextUrl.origin) return NextResponse.json({ erro: 'Origem inválida' }, { status: 403 })
+  if (!origemPermitida(req)) return NextResponse.json({ erro: 'Origem inválida' }, { status: 403 })
   try {
     const corpo = await req.text()
     if (Buffer.byteLength(corpo) > 700000) return NextResponse.json({ erro: 'Resposta muito extensa' }, { status: 413 })

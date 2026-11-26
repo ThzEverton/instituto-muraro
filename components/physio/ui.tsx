@@ -35,11 +35,11 @@ export function Inputs({fields,form,onChange}:{fields:FieldDef[];form:Record<str
   const value=form[field.key]??(field.type==='checkbox'?false:'')
   return <label className={'m-field'+(field.wide?' span-2':'')} key={field.key}>
    <span className="m-field-label">{field.label}{field.required&&<em> *</em>}</span>
-   {field.type==='textarea' ? <textarea rows={3} value={String(value)} placeholder={field.placeholder} onChange={e=>onChange(field.key,e.target.value)} />
-    :field.type==='select'?<select value={String(value)} onChange={e=>onChange(field.key,e.target.value)}><option value="">Selecione...</option>{(field.options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+   {field.type==='textarea' ? <textarea rows={3} required={field.required} value={String(value)} placeholder={field.placeholder} onChange={e=>onChange(field.key,e.target.value)} />
+    :field.type==='select'?<select required={field.required} value={String(value)} onChange={e=>onChange(field.key,e.target.value)}><option value="">Selecione...</option>{(field.options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
     :field.type==='checkbox'?<span className="m-checkline"><input type="checkbox" checked={Boolean(value)} onChange={e=>onChange(field.key,e.target.checked)}/>{field.help||'Sim'}</span>
     :field.type==='multiselect'?<div className="m-multiselect">{(field.options||[]).map(o=><label key={o.value}><input type="checkbox" checked={(Array.isArray(value)?value:[]).includes(o.value)} onChange={e=>{const old=Array.isArray(value)?value:[];onChange(field.key,e.target.checked?[...old,o.value]:old.filter((v:string)=>v!==o.value))}}/>{o.label}</label>)}</div>
-    :<input type={field.type||'text'} value={String(value)} placeholder={field.placeholder} min={field.min} max={field.max} onChange={e=>onChange(field.key,field.key==='cpf'?maskCpf(e.target.value):field.key.toLowerCase().includes('phone')?maskPhone(e.target.value):e.target.value)} />}
+    :<input type={field.type||'text'} required={field.required} step={field.type==='number'?'any':undefined} value={String(value)} placeholder={field.placeholder} min={field.min} max={field.max} onChange={e=>onChange(field.key,field.key==='cpf'?maskCpf(e.target.value):field.key.toLowerCase().includes('phone')?maskPhone(e.target.value):e.target.value)} />}
    {field.help&&field.type!=='checkbox'&&<small>{field.help}</small>}
   </label>
  })}</div>

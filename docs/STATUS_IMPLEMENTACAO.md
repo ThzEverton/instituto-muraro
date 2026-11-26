@@ -80,3 +80,7 @@ Planos/pacotes e mensalidades com contratos historicos, renovacao manual, parcel
 ## Comunicacao e fila WhatsApp
 
 Quatro regras configuraveis (confirmacao de agenda, lembrete, cobranca a vencer, renovacao), autorizacao de contato vinculada ao numero atual, fila idempotente, revalidacao antes do preparo, historico e auditoria, permissao por perfil, pagina /sistema/comunicacao e comando comunicacao:gerar. Envio manual via WhatsApp, confirmado pelo operador; nao ha integracao com provedor ou entrega automatica. Regras desabilitadas por padrao. Migracao local 9 aplicada, suite 22/22 aprovada, Swagger e builds atualizados. Guia docs/COMUNICACAO.md. Pendentes: escolha de provedor/hospedagem, agendamento do gerador, envio e retorno reais, anexos privados, importacao assistida, revisao visual, regras comerciais e homologacao de seguranca.
+
+## Integração do frontend original
+
+Interface operacional unificada no layout e componentes originais de fisioterapia. Raiz redireciona para /sistema, demonstração preservada e separada em /demo. Login real e navegação por perfil; painel /api/v1/painel/resumo com indicadores do PostgreSQL; pacientes com tabela, modal e perfil lateral; profissionais/serviços com tabelas e modais originais; agenda em calendário/lista; demais módulos integrados ao layout. Pré-consulta com identidade do formulário original. Origem local do proxy corrigida sem liberar origem externa. Suite 22/22 e teste de navegador scripts/verificar-interface-local.mjs aprovado. Ver docs/FRONTEND_INTEGRADO.md para limitações e homologação pendente.

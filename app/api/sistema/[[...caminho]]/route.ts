@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { origemPermitida } from '@/lib/origem-requisicao'
 
 function rotaPermitida(caminho: string, metodo: string): boolean {
   if (/^financeiro\/(parcerias|taxas|planos|contratos|cobrancas|despesas|comissoes)$/.test(caminho)) return metodo === 'GET' || metodo === 'POST'
@@ -11,6 +12,7 @@ function rotaPermitida(caminho: string, metodo: string): boolean {
   if (caminho === 'comunicacao/regras' || caminho === 'comunicacao/fila') return metodo === 'GET'
   if (caminho === 'comunicacao/gerar' || /^comunicacao\/fila\/[^/]+\/preparar$/.test(caminho)) return metodo === 'POST'
   if (/^comunicacao\/(regras\/[^/]+|pacientes\/[^/]+\/autorizacao|fila\/[^/]+\/(enviada|cancelar))$/.test(caminho)) return metodo === 'PATCH'
+  if (caminho === 'painel/resumo') return metodo === 'GET'
   if (caminho === 'autenticacao/entrar') return metodo === 'POST'
   if (caminho === 'formularios/modelos' || caminho === 'formularios/links') return metodo === 'GET' || metodo === 'POST'
   if (/^formularios\/(modelos|links)\/[^/]+$/.test(caminho)) return metodo === 'PATCH'
@@ -43,11 +45,8 @@ async function encaminhar(requisicao: NextRequest, contexto: { params: Promise<{
   if (!rotaPermitida(caminho, requisicao.method)) {
     return NextResponse.json({ erro: 'Rota indisponível' }, { status: 404 })
   }
-  if (requisicao.method !== 'GET') {
-    const origem = requisicao.headers.get('origin')
-    if (origem && new URL(origem).host !== requisicao.nextUrl.host) {
-      return NextResponse.json({ erro: 'Origem inválida' }, { status: 403 })
-    }
+  if (requisicao.method !== 'GET' && !origemPermitida(requisicao)) {
+    return NextResponse.json({ erro: 'Origem inválida' }, { status: 403 })
   }
   const endereco = process.env.API_INTERNA_URL ?? 'http://127.0.0.1:3333'
   const token = requisicao.cookies.get('muraro_sessao')?.value

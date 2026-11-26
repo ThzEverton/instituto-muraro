@@ -1,6 +1,7 @@
 'use client'
 import { useEffect,useState,type FormEvent } from 'react'
 import Link from 'next/link'
+import {SectionHeader} from '@/components/physio/ui'
 
 const tipos=[
   {id:'CONFIRMACAO_AGENDA',nome:'Confirmação de atendimento',dias:2,mensagem:'Olá, {nome}! Aqui é do {clinica}. Podemos confirmar seu compromisso de {data}, às {hora}?'},
@@ -11,9 +12,9 @@ const tipos=[
 type Regra={tipo:string;ativa:boolean;antecedenciaDias:number;mensagem:string}
 type Item={id:string;tipo:string;paciente:{nomeCompleto:string};referenciaData:string;situacao:string;criadaEm:string;enviadaEm:string|null;canceladaEm:string|null}
 type Preparada={telefone:string;mensagem:string}
-const campo='mt-1 w-full rounded-lg border border-slate-300 bg-white p-2'
-const botao='rounded-lg bg-[#142b49] px-4 py-2 text-sm text-white disabled:opacity-50'
-const secundario='rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50'
+const campo = 'm-input mt-1 w-full'
+const botao = 'm-btn primary'
+const secundario = 'm-btn secondary'
 const falha=(e:unknown)=>e instanceof Error?e.message:'Falha na operação'
 async function api<T>(rota:string,metodo='GET',corpo?:object):Promise<T>{
   const r=await fetch('/api/sistema/'+rota,{method:metodo,cache:'no-store',headers:{'Content-Type':'application/json'},...(corpo?{body:JSON.stringify(corpo)}:{})})
@@ -65,10 +66,10 @@ export default function Comunicacao(){
     catch(e){setErro(falha(e))}
     finally{setOcupado(false)}
   }
-  return <main className="min-h-screen bg-[#f4f7f8] px-4 py-8 text-slate-900"><div className="mx-auto max-w-6xl space-y-5">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold uppercase tracking-widest text-[#3c897d]">Instituto Muraro</p><h1 className="text-3xl font-semibold">Comunicação</h1></div><div className="flex gap-2"><Link href="/sistema" className={secundario}>Pacientes</Link><Link href="/sistema/agenda" className={secundario}>Agenda</Link></div></header>
+  return <div className="m-modulo space-y-5">
+    <SectionHeader eyebrow="COMUNICAÇÃO" title="Comunicação" description="Regras e fila de mensagens para WhatsApp."/>
     {erro&&<p role="alert" className="rounded-lg bg-white p-3 text-red-700">{erro}</p>}{aviso&&<p role="status" className="rounded-lg bg-white p-3 text-green-800">{aviso}</p>}
-    {['ADMINISTRADOR','RECEPCAO'].includes(perfil)&&<section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm">
+    {['ADMINISTRADOR','RECEPCAO'].includes(perfil)&&<section className="space-y-4 m-card">
       <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Fila de mensagens</h2><button className={botao} disabled={ocupado} onClick={gerar}>Gerar pendências</button></div>
       <p className="text-sm text-slate-600">Somente pacientes que autorizaram contato por WhatsApp. A geração é automática por regras, mas o envio é manual e deve ser confirmado pelo operador. Não há confirmação de entrega do WhatsApp.</p>
       <select aria-label="Situação da fila" className={campo} value={situacao} onChange={e=>{setSituacao(e.target.value);setPreparada(null);carregar(e.target.value,1).catch(e=>setErro(falha(e)))}}><option value="PENDENTE">Pendentes</option><option value="ENVIADA_MANUALMENTE">Envios registrados</option><option value="CANCELADA">Canceladas</option></select>
@@ -78,10 +79,10 @@ export default function Comunicacao(){
       {!fila.length&&<p className="text-sm text-slate-500">Nenhuma mensagem nesta situação.</p>}
       <div className="flex gap-3"><button className={secundario} disabled={pagina<=1} onClick={()=>carregar(situacao,pagina-1).catch(e=>setErro(falha(e)))}>Anterior</button><button className={secundario} disabled={pagina*50>=total} onClick={()=>carregar(situacao,pagina+1).catch(e=>setErro(falha(e)))}>Próxima</button></div>
     </section>}
-    {perfil==='ADMINISTRADOR'&&<section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">Regras de comunicação</h2><p className="text-sm text-slate-600">Configure e habilite cada regra. Não inclua diagnósticos, prontuários, valores ou outras informações sensíveis nas mensagens. Variáveis: <code>{'{nome}, {data}, {hora}, {clinica}'}</code>.</p>
+    {perfil==='ADMINISTRADOR'&&<section className="space-y-4 m-card"><h2 className="text-xl font-semibold">Regras de comunicação</h2><p className="text-sm text-slate-600">Configure e habilite cada regra. Não inclua diagnósticos, prontuários, valores ou outras informações sensíveis nas mensagens. Variáveis: <code>{'{nome}, {data}, {hora}, {clinica}'}</code>.</p>
       {tipos.map(t=>{const r=regras.find(x=>x.tipo===t.id);return <form key={t.id+String(r?.ativa)+r?.mensagem} className="space-y-3 rounded-xl border p-4" onSubmit={e=>salvar(e,t.id)}><h3 className="font-semibold">{t.nome}</h3><label className="flex gap-2 text-sm"><input type="checkbox" name="ativa" defaultChecked={r?.ativa??false}/>Habilitar geração de pendências</label><label className="block text-sm">Antecedência em dias<input name="dias" type="number" min={0} max={30} required className={campo} defaultValue={r?.antecedenciaDias??t.dias}/></label><label className="block text-sm">Mensagem<textarea name="mensagem" rows={3} minLength={5} maxLength={600} required className={campo} defaultValue={r?.mensagem??t.mensagem}/></label><button className={botao} disabled={ocupado}>Salvar regra</button></form>})}
     </section>}
     {perfil==='FISIOTERAPEUTA'&&<p>Área reservada à equipe administrativa.</p>}
     {!perfil&&!erro&&<p>Verificando sessão...</p>}
-  </div></main>
+  </div>
 }

@@ -51,6 +51,7 @@ const token = z.string().regex(/^[a-f0-9]{64}$/)
 const erro = z.object({ erro: texto })
 
 export const etiquetas = [
+  {name:'Painel',description:'Indicadores operacionais por perfil.'},
   { name: 'Comunicacao', description: 'Autorizacoes e fila de mensagens para envio manual.' },
   { name: 'Planos', description: 'Planos, contratos, renovacoes e sessoes.' },
   { name: 'Financeiro', description: 'Cobrancas, recebimentos, despesas, taxas e comissoes.' },
@@ -197,6 +198,8 @@ registrar('GET','comunicacao/fila','Comunicacao','Consultar fila','Lista pendenc
 registrar('POST','comunicacao/fila/:id/preparar','Comunicacao','Preparar mensagem','Revalida permissao, regra e evento; retorna telefone e texto para envio manual. Nao confirma entrega.',equipe,dados(z.object({telefone:texto,mensagem:texto})),undefined,[404,409],200)
 registrar('PATCH','comunicacao/fila/:id/enviada','Comunicacao','Registrar envio manual','Registra confirmacao do operador, nao comprova entrega por provedor.',equipe,dados(z.object({id,situacao:z.literal('ENVIADA_MANUALMENTE')})),undefined,[404,409])
 registrar('PATCH','comunicacao/fila/:id/cancelar','Comunicacao','Cancelar pendencia','Cancela mensagem ainda pendente.',equipe,dados(z.object({id,situacao:z.literal('CANCELADA')})),undefined,[404,409])
+
+registrar('GET','painel/resumo','Painel','Resumo operacional','Indicadores do dia em Sao Paulo, agenda de ate 20 itens e resumo financeiro mensal apenas para administrador.',equipe,dados(z.object({data:z.iso.date(),pacientesAtivos:inteiro,atendimentosHoje:inteiro,sessoesConcluidas:inteiro,agenda:z.array(z.object({id,inicioEm:instante,situacao:situacaoAgenda,paciente:z.object({nomeCompleto:texto}),profissional:z.object({nome:texto}),servico:z.object({nome:texto})})),financeiro:z.object({recebidoMesCentavos:inteiro,planosAtivos:inteiro,cobrancasVencidas:inteiro}).nullable()})))
 
 type Esquema = Record<string, unknown>
 function json(schema: z.ZodType): Esquema {

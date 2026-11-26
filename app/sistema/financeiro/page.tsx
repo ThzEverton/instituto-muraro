@@ -1,6 +1,8 @@
 'use client'
 import { useEffect,useState,type FormEvent,type ReactNode } from 'react'
 import Link from 'next/link'
+import {useSearchParams} from 'next/navigation'
+import {SectionHeader} from '@/components/physio/ui'
 
 type Paciente={id:string;nomeCompleto:string}
 type Cadastro={id:string;nome:string;ativo:boolean}
@@ -17,9 +19,9 @@ type Config={nome:string;telefone:string|null;email:string|null;endereco:string|
 const moeda=(n:number)=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100)
 const data=(s:string)=>s.slice(0,10).split('-').reverse().join('/')
 const hoje=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
-const campo='mt-1 w-full rounded-lg border border-slate-300 bg-white p-2'
-const botao='rounded-lg bg-[#142b49] px-4 py-2 text-sm font-medium text-white disabled:opacity-50'
-const secundario='rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:opacity-50'
+const campo = 'm-input mt-1 w-full'
+const botao = 'm-btn primary'
+const secundario = 'm-btn secondary'
 const formas=['PIX','DINHEIRO','DEBITO','CREDITO','TRANSFERENCIA','OUTRO']
 const mensagem=(e:unknown)=>e instanceof Error?e.message:'Operação indisponível'
 async function api<T>(rota:string,metodo='GET',corpo?:object):Promise<T>{
@@ -34,13 +36,14 @@ function Entrada({nome,tipo='text',valor='',obrigatorio=true,min,max,step}:{nome
 function Escolha({nome,opcoes,valor='',vazio='Selecione',obrigatorio=true}:{nome:string;opcoes:{id:string;nome:string}[];valor?:string;vazio?:string;obrigatorio?:boolean}){
   return <select name={nome} defaultValue={valor} required={obrigatorio} className={campo}><option value="">{vazio}</option>{opcoes.map(o=><option key={o.id} value={o.id}>{o.nome}</option>)}</select>
 }
-function Painel({titulo,children}:{titulo:string;children:ReactNode}){return <section className="space-y-4 rounded-2xl bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold">{titulo}</h2>{children}</section>}
+function Painel({titulo,children}:{titulo:string;children:ReactNode}){return <section className="space-y-4 m-card"><h2 className="text-xl font-semibold">{titulo}</h2>{children}</section>}
 const str=(f:FormData,k:string)=>String(f.get(k)??'').trim()
 const num=(f:FormData,k:string)=>Number(f.get(k))
 const centavos=(f:FormData,k:string)=>Math.round(num(f,k)*100)
 const pontos=(f:FormData,k:string)=>Math.round(num(f,k)*100)
 
 export default function Financeiro(){
+  const parametros=useSearchParams()
   const [perfil,setPerfil]=useState('')
   const [aba,setAba]=useState('Resumo')
   const [erro,setErro]=useState('')
@@ -95,6 +98,7 @@ export default function Financeiro(){
     const q=new URLSearchParams(window.location.search),id=q.get('paciente')||'',ag=q.get('agendamento')||''
     setPacienteId(id);setAgendamentoId(ag);novaChave()
     if(ag)setAba('Planos')
+    const abaInicial=q.get('aba');if(abaInicial&&['Resumo','Planos','Cobranças','Despesas','Comissões','Configurações'].includes(abaInicial))setAba(abaInicial)
     api<{dados:{perfil:string}}>('autenticacao/sessao').then(async r=>{
       setPerfil(r.dados.perfil)
       if(r.dados.perfil==='ADMINISTRADOR'){
@@ -103,6 +107,7 @@ export default function Financeiro(){
       }
     }).catch(e=>setErro(mensagem(e)))
   },[])
+  useEffect(()=>{const a=parametros.get('aba');if(a&&['Resumo','Planos','Cobranças','Despesas','Comissões','Configurações'].includes(a))setAba(a);else if(!parametros.get('agendamento'))setAba('Resumo')},[parametros])
   async function executar(fn:()=>Promise<unknown>,sucesso:string){
     setOcupado(true);setErro('');setAviso('')
     try{await fn();novaChave();setAviso(sucesso);await Promise.all([carregarCatalogo(),carregarMovimentos(),carregarPeriodo()])}
@@ -121,14 +126,14 @@ export default function Financeiro(){
   const estornar=(rota:string)=>{const motivo=window.prompt('Informe o motivo (mínimo de 3 caracteres)');if(motivo&&motivo.trim().length>=3)void executar(()=>acao(rota,'PATCH',{motivo}),'Operação registrada.')}
   function paginar(n:number){carregarMovimentos(pacienteId,n).catch(e=>setErro(mensagem(e)))}
   const abas=['Resumo','Planos','Cobranças','Despesas','Comissões','Configurações']
-  return <main className="min-h-screen bg-[#f4f7f8] px-4 py-8 text-slate-900"><div className="mx-auto max-w-7xl space-y-5">
-    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm font-semibold uppercase tracking-widest text-[#3c897d]">Instituto Muraro</p><h1 className="text-3xl font-semibold">Gestão financeira</h1></div><div className="flex gap-2"><Link href="/sistema" className={secundario}>Pacientes</Link><Link href="/sistema/agenda" className={secundario}>Agenda</Link></div></header>
+  return <div className="m-modulo space-y-5">
+    <SectionHeader eyebrow="ADMINISTRAÇÃO" title="Gestão financeira" description="Controle financeiro, planos, recebimentos e repasses."/>
     {erro&&<p role="alert" className="rounded-lg bg-white p-3 text-red-700">{erro}</p>}{aviso&&<p role="status" className="rounded-lg bg-white p-3 text-green-800">{aviso}</p>}
     {!perfil&&<p>Verificando acesso...</p>}
     {perfil&&perfil!=='ADMINISTRADOR'&&<p>Área exclusiva de administração.</p>}
     {perfil==='ADMINISTRADOR'&&<>
       <nav className="flex flex-wrap gap-2">{abas.map(a=><button key={a} disabled={ocupado} onClick={()=>{setAba(a);setErro('');setAviso('')}} className={aba===a?botao:secundario}>{a}</button>)}</nav>
-      {['Resumo','Despesas','Comissões'].includes(aba)&&<form className="flex flex-wrap items-end gap-3 rounded-xl bg-white p-4" onSubmit={e=>{e.preventDefault();carregarPeriodo().catch(e=>setErro(mensagem(e)))}}><Campo rotulo="De"><input type="date" className={campo} value={inicio} onChange={e=>setInicio(e.target.value)} required/></Campo><Campo rotulo="Até"><input type="date" className={campo} value={fim} onChange={e=>setFim(e.target.value)} required/></Campo><button className={botao}>Aplicar período</button></form>}
+      {['Resumo','Despesas','Comissões'].includes(aba)&&<form className="flex flex-wrap items-end gap-3 m-card" onSubmit={e=>{e.preventDefault();carregarPeriodo().catch(e=>setErro(mensagem(e)))}}><Campo rotulo="De"><input type="date" className={campo} value={inicio} onChange={e=>setInicio(e.target.value)} required/></Campo><Campo rotulo="Até"><input type="date" className={campo} value={fim} onChange={e=>setFim(e.target.value)} required/></Campo><button className={botao}>Aplicar período</button></form>}
       {['Planos','Cobranças'].includes(aba)&&<Painel titulo="Filtro por paciente"><form className="flex flex-wrap items-end gap-2" onSubmit={e=>{e.preventDefault();buscarPacientes(busca).catch(e=>setErro(mensagem(e)))}}><Campo rotulo="Buscar nome"><input className={campo} value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar paciente"/></Campo><button className={secundario}>Buscar</button></form><select className={campo} value={pacienteId} onChange={e=>{setPacienteId(e.target.value);setRenovar(null);setReceber(null);carregarMovimentos(e.target.value,1).catch(e=>setErro(mensagem(e)))}}><option value="">Todos os pacientes</option>{pacientes.map(p=><option key={p.id} value={p.id}>{p.nomeCompleto}</option>)}</select></Painel>}
       {aba==='Resumo'&&relatorio&&<Painel titulo="Resumo de caixa"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{([['Recebimentos',relatorio.recebimentosCentavos],['Estornos',relatorio.estornosCentavos],['Taxas líquidas',relatorio.taxasCentavos],['Despesas',relatorio.despesasCentavos],['Estornos de despesas',relatorio.estornosDespesasCentavos],['Repasses pagos',relatorio.repassesCentavos],['Saldo do período',relatorio.saldoCentavos],['A receber no vencimento',relatorio.aReceberCentavos]] as [string,number][]).map(([l,n])=><div key={l} className="rounded-xl border p-4"><p className="text-sm text-slate-600">{l}</p><p className="mt-2 text-2xl font-semibold">{moeda(n)}</p></div>)}</div><p className="text-sm text-slate-500">Regime de caixa operacional. A receber corresponde ao saldo atual das cobranças com vencimento no período. Não é demonstrativo contábil.</p></Painel>}
       {aba==='Planos'&&<>
@@ -155,5 +160,5 @@ export default function Financeiro(){
         <Painel titulo="Taxas por forma de pagamento"><form className={formClass} onSubmit={e=>enviar(e,f=>acao('taxas','POST',{formaPagamento:str(f,'forma'),parcelas:num(f,'parcelas'),pontosBase:pontos(f,'taxa')}),'Nova versão de taxa salva.')}><Campo rotulo="Forma"><Escolha nome="forma" opcoes={opFormas} valor="CREDITO"/></Campo><Campo rotulo="Parcelas"><Entrada nome="parcelas" tipo="number" min={1} max={24} valor={1}/></Campo><Campo rotulo="Taxa (%)"><Entrada nome="taxa" tipo="number" min={0} max={100} step="0.01"/></Campo><button className={botao} disabled={ocupado}>Criar versão</button></form>{taxas.map(t=><div key={t.id} className="border-b py-2 text-sm">{t.formaPagamento} {t.parcelas}x · {t.pontosBase/100}% · {data(t.criadaEm)}</div>)}</Painel>
       </>}
     </>}
-  </div></main>
+  </div>
 }

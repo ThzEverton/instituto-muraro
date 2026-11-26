@@ -1,4 +1,6 @@
 'use client'
+import { ClipboardList, ShieldCheck, Check } from 'lucide-react'
+import '@/app/paciente/paciente.css'
 import { useEffect, useState, type FormEvent } from 'react'
 
 type Pergunta = { id: string; rotulo: string; tipo: string; obrigatoria: boolean; opcoes?: string[] }
@@ -29,21 +31,21 @@ export default function PreConsulta() {
     catch(e) {setErro(e instanceof Error ? e.message : 'Não foi possível enviar')}
     finally {setCarregando(false)}
   }
-  const campo = 'mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900'
+  const campo = 'patient-input'
   function alterar(id:string,valor:Valor) {setRespostas(a => ({...a,[id]:valor}))}
-  return <main className="min-h-screen bg-[#f4f7f8] px-4 py-8 text-slate-900"><div className="mx-auto max-w-xl space-y-5">
-    <header><p className="text-sm font-semibold uppercase tracking-widest text-[#3c897d]">Instituto Muraro</p><h1 className="mt-2 text-3xl font-semibold">Pré-consulta</h1></header>
+  return <main className="patient-page"><header className="patient-topbar"><div className="patient-brand"><img src="/instituto-muraro-logo.png" alt="Instituto Muraro" width={40} height={40}/><span><strong>Instituto Muraro</strong><small>Fisioterapia</small></span></div><span className="patient-back"><ShieldCheck size={17}/> Link individual</span></header>
+    <section className="patient-layout patient-operacional"><div className="patient-copy"><span className="patient-kicker">PRÉ-CONSULTA</span><h1>Uma experiência simples para responder pelo celular.</h1><p>Responda ao formulário enviado pela clínica. Não compartilhe o link com outras pessoas.</p><div className="patient-note"><ShieldCheck size={18}/><span><strong>Questionário individual</strong><small>Somente a equipe clínica autorizada poderá consultar suas respostas.</small></span></div></div><div className="patient-operacional-card"><div className="patient-brand"><span className="patient-brand-mark"><ClipboardList size={18}/></span><span><strong>Instituto Muraro</strong><small>Fisioterapia</small></span></div>
     {erro && <p role="alert" className="rounded-xl bg-white p-4 text-red-700">{erro}</p>}
     {carregando && <p role="status">Aguarde...</p>}
     {enviado && <section className="rounded-2xl bg-white p-6 shadow-sm"><h2 className="text-xl font-semibold">Respostas enviadas</h2><p className="mt-2 text-sm">A equipe clínica autorizada poderá consultar suas respostas.</p></section>}
-    {modelo && <form onSubmit={enviar} className="space-y-6 rounded-2xl bg-white p-5 shadow-sm sm:p-7">
-      <div><h2 className="text-xl font-semibold">{modelo.titulo}</h2><p className="mt-2 text-sm text-slate-600">Responda com atenção. Não compartilhe este link. Os campos marcados com * são obrigatórios.</p></div>
-      {modelo.perguntas.map(p => <label key={p.id} className="block text-sm font-medium">{p.rotulo}{p.obrigatoria && ' *'}
+    {modelo && <form onSubmit={enviar} className="patient-operacional-form">
+      <div className="patient-intro"><span className="mini-label">QUESTIONÁRIO ONLINE</span><h2>{modelo.titulo}</h2><p>Responda com atenção. Não compartilhe este link. Os campos marcados com * são obrigatórios.</p></div>
+      {modelo.perguntas.map(p => <label key={p.id} className="patient-question">{p.rotulo}{p.obrigatoria && ' *'}
         {p.tipo === 'TEXTO_LONGO' ? <textarea rows={4} className={campo} maxLength={10000} required={p.obrigatoria} value={String(respostas[p.id]??'')} onChange={e=>alterar(p.id,e.target.value)}/>
         : p.tipo === 'ESCOLHA' || p.tipo === 'SIM_NAO' ? <select className={campo} required={p.obrigatoria} value={String(respostas[p.id]??'')} onChange={e=>alterar(p.id,e.target.value===''?null:p.tipo==='SIM_NAO'?e.target.value==='true':e.target.value)}><option value="">Selecione</option>{p.tipo==='SIM_NAO'?<><option value="true">Sim</option><option value="false">Não</option></>:p.opcoes?.map(o=><option key={o} value={o}>{o}</option>)}</select>
         : <input className={campo} type={p.tipo==='NUMERO'?'number':p.tipo==='DATA'?'date':'text'} step={p.tipo==='NUMERO'?'any':undefined} maxLength={p.tipo==='TEXTO'?500:undefined} required={p.obrigatoria} value={String(respostas[p.id]??'')} onChange={e=>alterar(p.id,e.target.value===''?null:p.tipo==='NUMERO'?Number(e.target.value):e.target.value)}/>}
       </label>)}
-      <button disabled={carregando} className="w-full rounded-xl bg-[#142b49] p-3 font-semibold text-white disabled:opacity-50">Enviar respostas</button>
+      <button disabled={carregando} className="patient-submit"><Check size={17}/> Enviar respostas</button>
     </form>}
-  </div></main>
+  </div></section></main>
 }

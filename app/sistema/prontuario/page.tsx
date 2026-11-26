@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
+import {SectionHeader} from '@/components/physio/ui'
 
 type Paciente = { id: string; nomeCompleto: string; ativo: boolean }
 type Profissional = { id: string; nome: string; usuarioId: string | null }
@@ -11,9 +12,9 @@ type Entrada = { id: string; autorId: string; autorNome: string | null; autorReg
 type RespostaFormulario = { id: string; enviadaEm: string; respostas: Record<string, string | number | boolean | null>; link: { agendamentoId: string; modelo: { titulo: string; versao: number; perguntas: { id: string; rotulo: string }[] } } }
 type Prontuario = { paciente: Paciente; entradas: Entrada[]; usuarioId: string; formularios: RespostaFormulario[] }
 const tipos = [['ANAMNESE','Anamnese'],['AVALIACAO','Avaliação clínica'],['EVOLUCAO','Evolução'],['ADENDO','Adendo / correção']]
-const campo = 'mt-1 w-full rounded-lg border border-slate-300 bg-white p-2'
-const botao = 'rounded-lg bg-[#142b49] px-4 py-2 text-sm text-white disabled:opacity-50'
-const secundario = 'rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50'
+const campo = 'm-input mt-1 w-full'
+const botao = 'm-btn primary'
+const secundario = 'm-btn secondary'
 async function api<T>(rota: string, metodo = 'GET', corpo?: object): Promise<T> {
   const r = await fetch('/api/sistema/' + rota, { method: metodo, headers: { 'Content-Type': 'application/json' }, cache: 'no-store', ...(corpo ? { body: JSON.stringify(corpo) } : {}) })
   const json = await r.json()
@@ -30,20 +31,15 @@ export default function Clinica() {
     try { await api('autenticacao/sair', 'POST', {}); window.location.replace('/sistema') }
     catch (e) { setErro(mensagem(e)) }
   }
-  return <main className="min-h-screen bg-[#f4f7f8] px-4 py-8 text-slate-900">
-    <div className="mx-auto max-w-6xl">
-      <header className="mb-6 flex flex-wrap items-center justify-between gap-4"><div>
-        <p className="text-sm font-semibold uppercase tracking-widest text-[#3c897d]">Instituto Muraro</p>
-        <h1 className="text-3xl font-semibold">{perfil === 'ADMINISTRADOR' ? 'Gestão de acessos clínicos' : 'Prontuário clínico'}</h1>
-      </div><div className="flex gap-2">{perfil !== 'FISIOTERAPEUTA' && <Link href="/sistema" className={secundario}>Voltar</Link>}{perfil && perfil !== 'SEM_SESSAO' && <button onClick={sair} className={secundario}>Sair</button>}</div></header>
+  return <div className="m-modulo space-y-5">
+    <SectionHeader eyebrow="GESTÃO CLÍNICA" title={perfil === 'ADMINISTRADOR' ? 'Gestão de acessos clínicos' : 'Prontuário clínico'} description="Registros e acessos clínicos conforme perfil."/>
       {erro && <p role="alert" className="mb-3 text-red-700">{erro}</p>}
       {!perfil && <p>Verificando sessão...</p>}
       {perfil === 'ADMINISTRADOR' && <Gestao />}
       {perfil === 'FISIOTERAPEUTA' && <Prontuarios />}
       {perfil === 'RECEPCAO' && <p>O conteúdo clínico não está disponível para a recepção.</p>}
       {perfil === 'SEM_SESSAO' && <Link href="/sistema" className={botao}>Entrar no sistema</Link>}
-    </div>
-  </main>
+  </div>
 }
 
 function Gestao() {
@@ -84,7 +80,7 @@ function Gestao() {
     finally {setOcupado(false); setSenha('')}
   }
   const profissional = profissionais.find(p => p.id === profissionalId)
-  return <section className="space-y-6 rounded-2xl bg-white p-6 shadow-sm">
+  return <section className="space-y-6 m-card">
     <p className="text-sm text-slate-600">Gerencie contas e autorizações. O administrador não visualiza os registros clínicos.</p>
     {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
     <label className="block text-sm">Profissional<select className={campo} value={profissionalId} disabled={ocupado} onChange={e => setProfissionalId(e.target.value)}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
@@ -164,7 +160,7 @@ function Prontuarios() {
       {!pacientes.length && <p className="text-sm text-slate-500">Nenhum paciente autorizado.</p>}
       <div className="flex justify-between text-sm"><button disabled={pagina<=1} onClick={() => buscar(pagina-1).catch(e => setErro(mensagem(e)))}>Anterior</button><button disabled={pagina*50>=total} onClick={() => buscar(pagina+1).catch(e => setErro(mensagem(e)))}>Próxima</button></div>
     </aside>
-    <section className="space-y-5 rounded-2xl bg-white p-6 shadow-sm">
+    <section className="space-y-5 m-card">
       {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
       {!prontuario && <p className="text-sm text-slate-500">Selecione um paciente autorizado para abrir o prontuário.</p>}
       {prontuario && <>
