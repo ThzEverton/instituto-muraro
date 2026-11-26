@@ -24,7 +24,7 @@ As duas operações públicas de pré-consulta utilizam o token individual do fo
 Para cada nova rota operacional /api/v1/:
 
 1. Implemente a validação Zod e as regras de autorização no módulo correspondente.
-2. Registre a operação em `backend/src/infraestrutura/documentacao/openapi.ts` com método, caminho, grupo, descrição, perfis, schema Zod de entrada (quando existir), schema de saída explícito, exemplo fictício, status de sucesso e erros.
+2. Registre a operação em `backend/src/configuracoes/openapi.ts` com método, caminho, grupo, descrição, perfis, schema Zod de entrada (quando existir), schema de saída explícito, exemplo fictício, status de sucesso e erros.
 3. Utilize os mesmos schemas de entrada do backend; não duplique as validações. Refinamentos que não são traduzíveis para JSON Schema (CPF, datas relacionadas, regras de concorrência e autorização por vínculo) devem ser descritos em texto.
 4. Documente exclusivamente os campos efetivamente retornados, sem hashes de senhas, credenciais reais ou dados sensíveis de exemplo.
 5. Execute `corepack pnpm backend:build` e `corepack pnpm backend:test`. O teste de documentação verifica cobertura, unicidade de operationId, segurança, parâmetros, respostas, exemplos Zod e endpoints JSON/YAML/UI.

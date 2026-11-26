@@ -8,8 +8,8 @@
     "start": "node dist/src/servidor.js",
     "banco:gerar": "prisma generate --schema prisma/schema.prisma",
     "banco:migrar": "prisma migrate deploy --schema prisma/schema.prisma",
-    "administrador:criar": "tsx src/infraestrutura/banco-de-dados/criar-administrador.ts",
+    "administrador:criar": "tsx src/utilitarios/criar-administrador.ts",
     "test": "vitest run tests",
-    "comunicacao:gerar": "tsx src/modulos/comunicacao/gerar-fila.ts"
+    "comunicacao:gerar": "tsx src/utilitarios/gerar-fila.ts"
   }
 }

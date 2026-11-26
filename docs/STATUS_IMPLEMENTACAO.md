@@ -88,3 +88,7 @@ Interface operacional unificada no layout e componentes originais de fisioterapi
 ## Limpeza de código legado
 
 A descrição inicial deste documento é histórica. A API demonstrativa em memória, seus testes históricos, mocks desconectados, componente de template sem consumidor e imagens placeholder foram retirados da árvore ativa. O demo de fisioterapia, as migrações, as rotas operacionais e os testes reais foram preservados. Scripts exploratórios de auditoria foram arquivados fora do projeto.
+
+## Refatoração MVC
+
+A estrutura vertical anterior foi substituída por MVC horizontal. Os endpoints, schema, migrações e regras existentes foram preservados; detalhes em docs/ARCHITECTURE.md. A arquitetura não equivale à homologação de produção.

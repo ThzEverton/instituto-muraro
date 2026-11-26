@@ -9,3 +9,10 @@
 - Preservar histórico financeiro e clínico. Não executar migração destrutiva sem análise de dados e plano de reversão.
 - Trabalhar em `feature/*` ou `fix/*`, integrar em `develop`, homologar em `qa` e preservar `main`. PRs e commits em português. Não fazer push direto na `main`.
 - Atualizar `docs/STATUS_IMPLEMENTACAO.md`, `docs/MATRIZ_ESCOPO.md`, `docs/BACKLOG.md` e `docs/RELATORIO_TESTES.md` ao encerrar cada etapa. Registrar resultados observados, não presumidos.
+
+## Arquitetura obrigatória
+
+- O backend segue MVC horizontal: rotas, controladores, servicos, repositorios, middlewares, validacoes, configuracoes, tipos e utilitarios. Não recriar pastas verticais de módulos.
+- Prisma schema é o Model; Next.js é a View; controladores Fastify adaptam HTTP. Serviços concentram regras e recebem DTOs; repositórios executam o acesso ao banco e SQL. Não duplicar modelos nem introduzir microsserviços.
+- Preserve transações, locks, autorização clínica e auditoria. Teste a separação das camadas em backend/tests/arquitetura.test.ts.
+- Consulte docs/ARCHITECTURE.md antes de modificar o backend.

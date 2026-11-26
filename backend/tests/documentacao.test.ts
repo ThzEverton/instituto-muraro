@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { criarAplicacao } from '../src/servidor.js'
-import { esquemaDocumentacao, rotasDocumentadas } from '../src/infraestrutura/documentacao/openapi.js'
+import { criarAplicacao } from '../src/app.js'
+import { esquemaDocumentacao, rotasDocumentadas, etiquetas } from '../src/configuracoes/openapi.js'
 
 const aplicacao = criarAplicacao()
 type Operacao = {
@@ -9,7 +9,7 @@ type Operacao = {
   requestBody?: { content: Record<string,{schema:{example?:unknown}}> };
   responses: Record<string,{ description:string; content: Record<string,{schema:{example?:unknown}}> }>;
 }
-type Documento = { openapi:string; paths: Record<string,Record<string,Operacao>>; components:{ securitySchemes: Record<string,{type:string;scheme:string}> } }
+type Documento = { tags:{name:string;description:string}[]; info:{description:string}; openapi:string; paths: Record<string,Record<string,Operacao>>; components:{ securitySchemes: Record<string,{type:string;scheme:string}> } }
 let documento: Documento
 beforeAll(async () => {
   const app = await aplicacao
@@ -58,6 +58,22 @@ describe('Documentação OpenAPI operacional', () => {
         expect(consulta.success,chave+' consulta '+JSON.stringify(consulta.error?.issues)).toBe(true)
       }
     }
+  })
+  it('organiza todos os grupos e entrega tema, guia e pesquisa', async () => {
+    expect(documento.tags.map(t=>t.name)).toEqual(etiquetas.map(t=>t.name))
+    expect(documento.tags.slice(0,2).map(t=>t.name)).toEqual(['Saúde da API','Autenticação'])
+    expect(new Set(Object.values(documento.paths).flatMap(m=>Object.values(m).flatMap(o=>o.tags)))).toEqual(new Set(etiquetas.map(t=>t.name)))
+    expect(documento.info.description).toContain('Comece por aqui')
+    const app=await aplicacao
+    const tema=await app.inject('/docs/static/theme/muraro.css')
+    expect(tema.statusCode).toBe(200)
+    expect(tema.body).toContain('--muraro-navy')
+    const html=await app.inject('/docs/')
+    expect(html.body).toContain('muraro.css')
+    const js=await app.inject('/docs/static/swagger-initializer.js')
+    expect(js.statusCode).toBe(200)
+    expect(js.body).toMatch(/["']?filter["']?\s*:\s*true/)
+    expect(js.body).toMatch(/["']?persistAuthorization["']?\s*:\s*false/)
   })
   it('entrega interface e YAML e bloqueia registro de nova rota sem documentação', async () => {
     const app = await aplicacao

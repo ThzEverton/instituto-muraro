@@ -39,3 +39,10 @@ Não houve teste visual da interface em navegador nem simulação de operações
 - Instalação frozen-lockfile, UX Guardrails sem findings, typecheck, build backend, build Next.js e verificação do demo aprovados.
 - PostgreSQL 16 descartável: nove migrações aplicadas, 19/19 testes ativos aprovados (12 de integração, 4 de fundação, 3 de documentação). A redução de 22 para 19 decorre exclusivamente da retirada de testes da API histórica em memória.
 - Sistema, demo, saúde da API e Swagger responderam HTTP 200 após limpeza. Banco local existente preservado; container temporário encerrado. Quatro resíduos compilados antigos removidos. Scripts exploratórios de auditoria arquivados fora da árvore ativa. Não houve exclusão de dados do banco nem deploy de produção.
+
+## Refatoração MVC horizontal — 26/11/2026
+
+- Backend reorganizado em rotas, controladores, serviços, repositórios, middlewares, validações, configurações, tipos e utilitários. Model único no Prisma. Foram preservadas as 82 operações, permissões, transações, locks e nove migrações; sem alterações no schema.
+- PostgreSQL descartável: 9/9 migrações aplicadas, 22/22 testes aprovados (12 integração, 4 fundação, 4 documentação incluindo tema Swagger preexistente, 2 arquitetura). Sem escrita no banco local existente.
+- Build backend, typecheck frontend e UX Guardrails aprovados. API, Swagger e sistema local responderam HTTP 200; Swagger com 82 operações. Teste de navegador completo anterior não foi repetido nesta refatoração; testes de integração exercitam os contratos e persistência. Repositórios oferecem acesso tipado; algumas projeções e filtros permanecem nos serviços. A refatoração não resolve por si só timeout, performance ou homologação clínica.
+- Alterações de tema Swagger que já estavam presentes na árvore local foram preservadas e verificadas. Backup das alterações preexistentes e scripts de transformação fora do repositório.

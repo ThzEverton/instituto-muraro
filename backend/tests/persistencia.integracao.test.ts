@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { afterAll, describe, expect, it } from 'vitest'
-import { criarAplicacao } from '../src/servidor.js'
-import { prisma } from '../src/infraestrutura/banco-de-dados/prisma.js'
-import { criarHashSenha } from '../src/compartilhado/seguranca/senhas.js'
+import { criarAplicacao } from '../src/app.js'
+import { prisma } from '../src/configuracoes/banco-de-dados.js'
+import { criarHashSenha } from '../src/utilitarios/senhas.js'
 
 const descrever = process.env.TESTAR_POSTGRES === '1' ? describe : describe.skip
 

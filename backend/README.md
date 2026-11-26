@@ -8,3 +8,7 @@ O comando dev inicia src/servidor.ts, API Fastify em português com Prisma/Postg
 - test: validação unitária, documentação e integração PostgreSQL quando TESTAR_POSTGRES=1.
 
 A API demonstrativa antiga em memória e seus três testes históricos foram retirados da árvore ativa. O demo de frontend permanece isolado. Não executar integração com dados reais: use banco descartável. O sistema ainda não está homologado para uso clínico.
+
+## Arquitetura
+
+MVC horizontal em português: rotas, controladores, servicos, repositorios, middlewares, validacoes, configuracoes, tipos e utilitarios. Veja [Arquitetura](../docs/ARCHITECTURE.md). app.ts compõe a aplicação; servidor.ts inicia o listener. O Model é o schema Prisma.

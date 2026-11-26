@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { criarHashSenha, verificarSenha } from '../src/compartilhado/seguranca/senhas.js'
-import { cadastroPaciente, consultaPacientes } from '../src/modulos/pacientes/pacientes.validacao.js'
-import { cadastroProfissional } from '../src/modulos/profissionais/profissionais.validacao.js'
-import { cadastroServico } from '../src/modulos/servicos/servicos.validacao.js'
+import { criarHashSenha, verificarSenha } from '../src/utilitarios/senhas.js'
+import { cadastroPaciente, consultaPacientes } from '../src/validacoes/pacientes.validacao.js'
+import { cadastroProfissional } from '../src/validacoes/profissionais.validacao.js'
+import { cadastroServico } from '../src/validacoes/servicos.validacao.js'
 
 describe('fundação em português', () => {
   it('gera hash com sal e valida a senha sem guardar texto puro', async () => {
