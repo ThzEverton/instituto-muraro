@@ -217,12 +217,14 @@ export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
     const { situacao, ...alteracoes } = resultado.data
     if (situacao && !Object.keys(alteracoes).length) {
       const agendamento = await prisma.$transaction(async (transacao) => {
-        const alterado = await transacao.agendamento.update({ where: { id }, data: { situacao } })
+        const alterado = await transacao.agendamento.updateMany({ where: { id, situacao: { notIn: ['CANCELADO','CONCLUIDO','NAO_COMPARECEU'] } }, data: { situacao } })
+        if (!alterado.count) return null
         await transacao.registroAuditoria.create({
           data: { usuarioId: requisicao.identidade!.id, acao: 'ALTERAR_SITUACAO', entidade: 'agendamento', entidadeId: id },
         })
-        return alterado
+        return transacao.agendamento.findUniqueOrThrow({where:{id}})
       })
+      if (!agendamento) return resposta.code(409).send({erro:'Agendamento encerrado'})
       return { dados: agendamento }
     }
     const novos = {

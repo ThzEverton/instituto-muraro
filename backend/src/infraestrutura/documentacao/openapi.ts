@@ -8,6 +8,8 @@ import { consultaAgenda, consultaDisponibilidade, edicaoAgendamento, entradaAgen
 import * as clinica from '../../modulos/prontuario/prontuario.validacao.js'
 import * as formulario from '../../modulos/formularios/formularios.validacao.js'
 
+import * as fin from '../../modulos/financeiro/financeiro.validacao.js'
+
 const id = z.string().min(1)
 const texto = z.string()
 const inteiro = z.number().int()
@@ -48,6 +50,9 @@ const token = z.string().regex(/^[a-f0-9]{64}$/)
 const erro = z.object({ erro: texto })
 
 export const etiquetas = [
+  { name: 'Planos', description: 'Planos, contratos, renovacoes e sessoes.' },
+  { name: 'Financeiro', description: 'Cobrancas, recebimentos, despesas, taxas e comissoes.' },
+  { name: 'Configuracao', description: 'Dados da clinica e parcerias.' },
   { name: 'Saúde da API', description: 'Disponibilidade do backend e do PostgreSQL.' },
   { name: 'Autenticação', description: 'Sessões e credenciais.' },
   { name: 'Pacientes', description: 'Cadastros administrativos.' },
@@ -138,6 +143,48 @@ registrar('PATCH','formularios/links/:id','Formulários','Revogar link','Revoga 
 registrar('POST','formulario-publico/consultar','Pré-consulta pública','Consultar formulário individual','Token no corpo; retorna perguntas e título, sem identificar paciente. Limite de 30 requisições por minuto.',publico,dados(modeloPublico),corpo(formulario.consultaPublica,{token:exemploToken}),[400,410],200)
 registrar('POST','formulario-publico/enviar','Pré-consulta pública','Enviar respostas','Token individual no corpo. Valida campos, tipos e obrigatoriedade. Um envio por link; limite de 15 por minuto.',publico,dados(z.object({enviado:z.literal(true)})),corpo(formulario.envioPublico,{token:exemploToken,respostas:{pergunta1:'Resposta fictícia'}}),[400,410,409])
 
+const parceriaFin = z.object({id,nome:texto,descontoPontosBase:inteiro,ativo:booleano})
+const taxaFin = z.object({id,formaPagamento:texto,parcelas:inteiro,pontosBase:inteiro,criadaEm:instante})
+const planoFin = z.object({id,nome:texto,servicoId:id,modalidade:z.enum(['PACOTE','MENSALIDADE']),sessoes:inteiro,valorCentavos:inteiro,validadeDias:inteiro,ativo:booleano})
+const comissaoFin = z.object({id,recebimentoId:id,profissionalId:id,pontosBase:inteiro,baseCentavos:inteiro,valorCentavos:inteiro,criadaEm:instante,pagaEm:instante.nullable(),canceladaEm:instante.nullable()})
+const recebimentoFin = z.object({id,cobrancaId:id,valorCentavos:inteiro,recebidoEm:instante,estornadoEm:instante.nullable(),chaveOperacao:id.nullable(),formaPagamento:texto,parcelas:inteiro,taxaId:id.nullable(),taxaPontosBase:inteiro,taxaCentavos:inteiro,motivoEstorno:texto.nullable()})
+const cobrancaFin = z.object({id,pacienteId:id,descricao:texto,valorCentavos:inteiro,vencimentoEm:instante,situacao:z.enum(['PENDENTE','PARCIAL','PAGA','VENCIDA','CANCELADA','ESTORNADA']),contratoId:id.nullable(),parcela:inteiro.nullable(),chaveOperacao:id.nullable(),motivoCancelamento:texto.nullable()})
+const cobrancaDetalhe = cobrancaFin.extend({paciente:z.object({nomeCompleto:texto}),recebimentos:z.array(recebimentoFin.extend({comissao:comissaoFin.nullable()})),valorRecebidoCentavos:inteiro,saldoCentavos:inteiro})
+const contratoFin = z.object({id,chaveOperacao:id,pacienteId:id,planoId:id,parceriaId:id.nullable(),renovacaoDeId:id.nullable(),nomePlano:texto,servicoId:id,modalidade:texto,sessoesContratadas:inteiro,valorOriginalCentavos:inteiro,descontoPontosBase:inteiro,valorFinalCentavos:inteiro,quantidadeParcelas:inteiro,inicioEm:instante,fimEm:instante,criadoEm:instante,paciente:z.object({nomeCompleto:texto}),cobrancas:z.array(cobrancaFin),_count:z.object({consumos:inteiro}),sessoesUtilizadas:inteiro,sessoesRestantes:inteiro})
+const consumoFin=z.object({id,contratoId:id,agendamentoId:id,criadoEm:instante})
+const despesaFin=z.object({id,descricao:texto,categoria:texto,valorCentavos:inteiro,ocorridaEm:instante,chaveOperacao:id.nullable(),estornadaEm:instante.nullable(),motivoEstorno:texto.nullable()})
+const relatorioFin=z.object({inicio:z.iso.date(),fim:z.iso.date(),recebimentosCentavos:inteiro,estornosCentavos:inteiro,taxasCentavos:inteiro,despesasCentavos:inteiro,estornosDespesasCentavos:inteiro,repassesCentavos:inteiro,saldoCentavos:inteiro,aReceberCentavos:inteiro})
+const configFin=z.object({id,nome:texto,telefone:texto.nullable(),email:texto.nullable(),endereco:texto.nullable(),atualizadoEm:instante})
+const pagFin=(s:z.ZodType)=>z.object({dados:z.array(s),total:inteiro})
+const chaveFin='00000000-0000-4000-8000-000000000001'
+const planoEx={nome:'Plano ficticio',servicoId:idServico,modalidade:'PACOTE',sessoes:8,valorCentavos:80000,validadeDias:60}
+const motivoEx={motivo:'Correcao de exemplo'}
+registrar('GET','financeiro/parcerias','Configuracao','Listar parcerias','Lista convenios e descontos em pontos-base.',equipe,lista(parceriaFin))
+registrar('POST','financeiro/parcerias','Configuracao','Criar parceria','100 pontos-base equivalem a 1%.',admin,dados(parceriaFin),corpo(fin.parceria,{nome:'Parceria ficticia',descontoPontosBase:1000}),[400,409])
+registrar('PATCH','financeiro/parcerias/:id','Configuracao','Editar parceria','Desconto novo nao altera contratos anteriores.',admin,dados(parceriaFin),corpo(fin.edicaoParceria,{ativo:false}),[400,404,409])
+registrar('GET','financeiro/taxas','Financeiro','Listar taxas','Historico das versoes de taxas de pagamento.',admin,lista(taxaFin))
+registrar('POST','financeiro/taxas','Financeiro','Criar versao de taxa','Nova taxa para forma de pagamento e numero de parcelas.',admin,dados(taxaFin),corpo(fin.taxa,{formaPagamento:'CREDITO',parcelas:3,pontosBase:350}),[400])
+registrar('GET','financeiro/planos','Planos','Listar planos','Lista pacotes e mensalidades cadastrados.',equipe,lista(planoFin))
+registrar('POST','financeiro/planos','Planos','Criar plano','Define servico, sessoes, validade e valor total em centavos.',admin,dados(planoFin),corpo(fin.plano,planoEx),[400,409])
+registrar('PATCH','financeiro/planos/:id','Planos','Editar plano','Atualiza catalogo sem alterar contratos anteriores.',admin,dados(planoFin),corpo(fin.edicaoPlano,{valorCentavos:90000}),[400,404,409])
+registrar('GET','financeiro/contratos','Planos','Listar contratos','Contratos com parcelas e saldo de sessoes, paginados.',admin,pagFin(contratoFin),consulta(fin.consultaContratos),[400])
+registrar('POST','financeiro/contratos','Planos','Contratar ou renovar','Gera parcelas mensais com arredondamento exato. Renovacao explicita apos fim do contrato anterior. Chave UUID evita duplicidade.',admin,dados(contratoFin),corpo(fin.contrato,{chaveOperacao:chaveFin,pacienteId:idPaciente,planoId:'plano_exemplo',inicioEm:'2027-01-01',primeiroVencimento:'2027-01-05',quantidadeParcelas:3}),[400,409])
+registrar('POST','financeiro/consumos','Planos','Registrar sessao utilizada','Somente atendimento concluido, do mesmo paciente e servico, dentro da validade e com saldo. Um consumo por agendamento.',admin,dados(consumoFin),corpo(fin.consumo,{contratoId:'contrato_exemplo',agendamentoId:idAtendimento}),[400,409])
+registrar('GET','financeiro/cobrancas','Financeiro','Listar cobrancas','Cobrancas com saldo, recebimentos e situacao calculada.',admin,pagFin(cobrancaDetalhe),consulta(fin.consultaCobrancas),[400])
+registrar('POST','financeiro/cobrancas','Financeiro','Criar cobranca avulsa','Cria conta a receber; UUID impede repeticao.',admin,dados(cobrancaDetalhe),corpo(fin.cobranca,{chaveOperacao:chaveFin,pacienteId:idPaciente,descricao:'Cobranca ficticia',valorCentavos:10000,vencimentoEm:'2027-01-05'}),[400,409])
+registrar('PATCH','financeiro/cobrancas/:id/cancelar','Financeiro','Cancelar cobranca','Exige motivo e ausencia de recebimentos ativos.',admin,dados(cobrancaDetalhe),corpo(fin.motivo,motivoEx),[400,404,409])
+registrar('POST','financeiro/cobrancas/:id/recebimentos','Financeiro','Registrar recebimento','Baixa parcial ou integral; taxa versionada opcional. Nao realiza pagamento externo.',admin,dados(recebimentoFin),corpo(fin.recebimento,{chaveOperacao:chaveFin,valorCentavos:5000,formaPagamento:'PIX',parcelas:1}),[400,404,409])
+registrar('PATCH','financeiro/recebimentos/:id/estornar','Financeiro','Estornar recebimento','Reabre saldo; cancela comissao pendente. Bloqueia estorno se comissao ja paga.',admin,dados(recebimentoFin),corpo(fin.motivo,motivoEx),[400,404,409])
+registrar('GET','financeiro/despesas','Financeiro','Listar despesas','Consulta despesas por periodo civil.',admin,lista(despesaFin),consulta(fin.consultaPeriodo),[400])
+registrar('POST','financeiro/despesas','Financeiro','Registrar despesa','Despesa manual com categoria e chave unica.',admin,dados(despesaFin),corpo(fin.despesa,{chaveOperacao:chaveFin,descricao:'Despesa ficticia',categoria:'Material',valorCentavos:1000,ocorridaEm:'2027-01-05'}),[400,409])
+registrar('PATCH','financeiro/despesas/:id/estornar','Financeiro','Estornar despesa','Preserva original e registra motivo.',admin,dados(despesaFin),corpo(fin.motivo,motivoEx),[400,404,409])
+registrar('GET','financeiro/comissoes','Financeiro','Listar comissoes','Comissoes por periodo de criacao.',admin,lista(comissaoFin),consulta(fin.consultaPeriodo),[400])
+registrar('POST','financeiro/comissoes','Financeiro','Registrar comissao','Percentual explicito sobre valor liquido da taxa. Uma comissao por recebimento.',admin,dados(comissaoFin),corpo(fin.comissao,{recebimentoId:'recebimento_exemplo',profissionalId:idProfissional,pontosBase:2000}),[400,409])
+registrar('PATCH','financeiro/comissoes/:id/pagar','Financeiro','Registrar repasse','Marca comissao como paga; nao transfere dinheiro.',admin,dados(comissaoFin),undefined,[404,409])
+registrar('GET','financeiro/relatorio','Financeiro','Resumo de caixa','Recebimentos, estornos, taxas, despesas, repasses e saldo por periodo de ate 367 dias. A receber refere-se a vencimentos no periodo.',admin,dados(relatorioFin),consulta(fin.consultaPeriodo),[400])
+registrar('GET','configuracao','Configuracao','Consultar dados da clinica','Retorna configuracao ou nulo se ainda nao cadastrada.',equipe,dados(configFin.nullable()))
+registrar('PATCH','configuracao','Configuracao','Salvar dados da clinica','Grava nome, telefone, email e endereco.',admin,dados(configFin),corpo(fin.configuracao,{nome:'Instituto de exemplo',telefone:null,email:null,endereco:null}),[400])
+
 type Esquema = Record<string, unknown>
 function json(schema: z.ZodType): Esquema {
   return z.toJSONSchema(schema, { target: 'openapi-3.0', io: 'input' }) as Esquema
@@ -147,7 +194,7 @@ const mensagens: Record<number,string> = {
   409:'Conflito, duplicidade ou estado incompatível',410:'Link indisponível, expirado ou já respondido',429:'Limite de requisições atingido',500:'Erro interno',503:'Banco indisponível',
 }
 const exemploCampos: Record<string,unknown> = {
-  id:'registro_exemplo',pacienteId:idPaciente,profissionalId:idProfissional,servicoId:idServico,modeloId:idModelo,agendamentoId:idAtendimento,
+  inicio:'2027-01-01',fim:'2027-01-31',id:'registro_exemplo',pacienteId:idPaciente,profissionalId:idProfissional,servicoId:idServico,modeloId:idModelo,agendamentoId:idAtendimento,
   usuarioId:'usuario_exemplo',autorId:'usuario_exemplo',entradaId:'entrada_exemplo',token:exemploToken, email:'usuario@example.test',
   nome:'Nome de exemplo',nomeCompleto:'Paciente de exemplo',titulo:'Formulário de exemplo',texto:'Texto fictício',tipo:'EVOLUCAO',
   rotulo:'Pergunta fictícia',inicioEm:periodo.inicioEm,fimEm:periodo.fimEm,valorCentavos:10000,capacidade:1,quantidade:2,pagina:1,limite:20,

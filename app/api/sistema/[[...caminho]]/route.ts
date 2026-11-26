@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 function rotaPermitida(caminho: string, metodo: string): boolean {
+  if (/^financeiro\/(parcerias|taxas|planos|contratos|cobrancas|despesas|comissoes)$/.test(caminho)) return metodo === 'GET' || metodo === 'POST'
+  if (caminho === 'financeiro/consumos') return metodo === 'POST'
+  if (caminho === 'financeiro/relatorio') return metodo === 'GET'
+  if (/^financeiro\/(parcerias|planos)\/[^/]+$/.test(caminho)) return metodo === 'PATCH'
+  if (/^financeiro\/cobrancas\/[^/]+\/recebimentos$/.test(caminho)) return metodo === 'POST'
+  if (/^financeiro\/(cobrancas\/[^/]+\/cancelar|recebimentos\/[^/]+\/estornar|despesas\/[^/]+\/estornar|comissoes\/[^/]+\/pagar)$/.test(caminho)) return metodo === 'PATCH'
+  if (caminho === 'configuracao') return metodo === 'GET' || metodo === 'PATCH'
   if (caminho === 'autenticacao/entrar') return metodo === 'POST'
   if (caminho === 'formularios/modelos' || caminho === 'formularios/links') return metodo === 'GET' || metodo === 'POST'
   if (/^formularios\/(modelos|links)\/[^/]+$/.test(caminho)) return metodo === 'PATCH'

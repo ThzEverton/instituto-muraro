@@ -86,6 +86,7 @@ model Paciente {
   prontuarios                 Prontuario[]
   cobrancas                   Cobranca[]
   vinculosClinicos            VinculoClinico[]
+  contratosPlano ContratoPlano[]
 
   @@index([nomeCompleto])
   @@map("pacientes")
@@ -108,6 +109,7 @@ model Profissional {
   usuarioId     String? @unique @map("usuario_id")
   usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
   vinculosClinicos VinculoClinico[]
+  comissoes Comissao[]
 
   @@map("profissionais")
 }
@@ -124,6 +126,7 @@ model Servico {
   agendamentos   Agendamento[]
   profissionais ProfissionalServico[]
   modelosFormulario ModeloFormulario[]
+  planos PlanoTratamento[]
 
   @@map("servicos")
 }
@@ -190,6 +193,7 @@ model Agendamento {
   @@index([pacienteId, inicioEm])
   @@index([salaId, inicioEm, fimEm])
   linksFormulario LinkFormulario[]
+  consumoSessao ConsumoSessao?
 
   @@index([serieId])
   @@map("agendamentos")
@@ -332,6 +336,12 @@ model Cobranca {
   situacao      SituacaoCobranca @default(PENDENTE)
   paciente      Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   recebimentos  Recebimento[]
+  contratoId String? @map("contrato_id")
+  parcela Int?
+  motivoCancelamento String? @map("motivo_cancelamento")
+  chaveOperacao String? @unique @map("chave_operacao")
+  contrato ContratoPlano? @relation(fields: [contratoId], references: [id], onDelete: Restrict)
+  @@unique([contratoId, parcela])
 
   @@index([pacienteId, vencimentoEm])
   @@map("cobrancas")
@@ -343,6 +353,15 @@ model Recebimento {
   valorCentavos Int       @map("valor_centavos")
   recebidoEm    DateTime  @default(now()) @map("recebido_em")
   estornadoEm   DateTime? @map("estornado_em")
+  chaveOperacao String? @unique @map("chave_operacao")
+  formaPagamento String @default("OUTRO") @map("forma_pagamento")
+  parcelas Int @default(1)
+  taxaId String? @map("taxa_id")
+  taxa TaxaPagamento? @relation(fields: [taxaId], references: [id], onDelete: Restrict)
+  taxaPontosBase Int @default(0) @map("taxa_pontos_base")
+  taxaCentavos Int @default(0) @map("taxa_centavos")
+  motivoEstorno String? @map("motivo_estorno")
+  comissao Comissao?
   cobranca      Cobranca  @relation(fields: [cobrancaId], references: [id], onDelete: Restrict)
 
   @@index([cobrancaId])
@@ -354,6 +373,10 @@ model Despesa {
   descricao     String
   valorCentavos Int      @map("valor_centavos")
   ocorridaEm    DateTime @map("ocorrida_em")
+  categoria String @default("Geral")
+  chaveOperacao String? @unique @map("chave_operacao")
+  estornadaEm DateTime? @map("estornada_em")
+  motivoEstorno String? @map("motivo_estorno")
 
   @@map("despesas")
 }
@@ -369,4 +392,105 @@ model RegistroAuditoria {
 
   @@index([entidade, entidadeId, criadoEm])
   @@map("registros_auditoria")
+}
+
+
+model Parceria {
+  id String @id @default(cuid())
+  nome String @unique
+  descontoPontosBase Int @map("desconto_pontos_base")
+  ativo Boolean @default(true)
+  contratos ContratoPlano[]
+  @@map("parcerias")
+}
+
+model TaxaPagamento {
+  id String @id @default(cuid())
+  formaPagamento String @map("forma_pagamento")
+  parcelas Int
+  pontosBase Int @map("pontos_base")
+  criadaEm DateTime @default(now()) @map("criada_em")
+  recebimentos Recebimento[]
+  @@index([formaPagamento, parcelas, criadaEm])
+  @@map("taxas_pagamento")
+}
+
+model PlanoTratamento {
+  id String @id @default(cuid())
+  nome String @unique
+  servicoId String @map("servico_id")
+  modalidade String
+  sessoes Int
+  valorCentavos Int @map("valor_centavos")
+  validadeDias Int @map("validade_dias")
+  ativo Boolean @default(true)
+  servico Servico @relation(fields: [servicoId], references: [id], onDelete: Restrict)
+  contratos ContratoPlano[]
+  @@map("planos_tratamento")
+}
+
+model ContratoPlano {
+  id String @id @default(cuid())
+  chaveOperacao String @unique @map("chave_operacao")
+  pacienteId String @map("paciente_id")
+  planoId String @map("plano_id")
+  parceriaId String? @map("parceria_id")
+  renovacaoDeId String? @unique @map("renovacao_de_id")
+  nomePlano String @map("nome_plano")
+  servicoId String @map("servico_id")
+  modalidade String
+  sessoesContratadas Int @map("sessoes_contratadas")
+  valorOriginalCentavos Int @map("valor_original_centavos")
+  descontoPontosBase Int @map("desconto_pontos_base")
+  valorFinalCentavos Int @map("valor_final_centavos")
+  quantidadeParcelas Int @map("quantidade_parcelas")
+  inicioEm DateTime @db.Date @map("inicio_em")
+  fimEm DateTime @db.Date @map("fim_em")
+  criadoEm DateTime @default(now()) @map("criado_em")
+  paciente Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  plano PlanoTratamento @relation(fields: [planoId], references: [id], onDelete: Restrict)
+  parceria Parceria? @relation(fields: [parceriaId], references: [id], onDelete: Restrict)
+  renovacaoDe ContratoPlano? @relation("RenovacaoPlano", fields: [renovacaoDeId], references: [id], onDelete: Restrict)
+  renovacao ContratoPlano? @relation("RenovacaoPlano")
+  cobrancas Cobranca[]
+  consumos ConsumoSessao[]
+  @@index([pacienteId, inicioEm, fimEm])
+  @@map("contratos_plano")
+}
+
+model ConsumoSessao {
+  id String @id @default(cuid())
+  contratoId String @map("contrato_id")
+  agendamentoId String @unique @map("agendamento_id")
+  criadoEm DateTime @default(now()) @map("criado_em")
+  contrato ContratoPlano @relation(fields: [contratoId], references: [id], onDelete: Restrict)
+  agendamento Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Restrict)
+  @@index([contratoId])
+  @@map("consumos_sessao")
+}
+
+model Comissao {
+  id String @id @default(cuid())
+  recebimentoId String @unique @map("recebimento_id")
+  profissionalId String @map("profissional_id")
+  pontosBase Int @map("pontos_base")
+  baseCentavos Int @map("base_centavos")
+  valorCentavos Int @map("valor_centavos")
+  criadaEm DateTime @default(now()) @map("criada_em")
+  pagaEm DateTime? @map("paga_em")
+  canceladaEm DateTime? @map("cancelada_em")
+  profissional Profissional @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+  recebimento Recebimento @relation(fields: [recebimentoId], references: [id], onDelete: Restrict)
+  @@index([profissionalId, pagaEm])
+  @@map("comissoes")
+}
+
+model ConfiguracaoClinica {
+  id String @id
+  nome String
+  telefone String?
+  email String?
+  endereco String?
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+  @@map("configuracoes_clinica")
 }

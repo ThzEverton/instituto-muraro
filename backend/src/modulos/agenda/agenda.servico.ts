@@ -21,6 +21,11 @@ async function gravarNaTransacao(
   id?: string,
   situacao?: SituacaoAgendamento,
 ) {
+  if (id) {
+    await transacao.$queryRaw`SELECT id FROM agendamentos WHERE id = ${id} FOR UPDATE`
+    const atual = await transacao.agendamento.findUnique({where:{id}})
+    if (!atual || ['CANCELADO','CONCLUIDO','NAO_COMPARECEU'].includes(atual.situacao)) throw new ConflitoAgenda('Agendamento encerrado ou inexistente')
+  }
   const inicio = dataLocal(dados.inicioEm)
   const fim = dataLocal(dados.fimEm)
   if (inicio.data !== fim.data || dados.fimEm <= dados.inicioEm) {

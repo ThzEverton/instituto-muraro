@@ -303,6 +303,78 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect((await consultar(token2)).statusCode).toBe(410)
   })
 
+  it('controla contratos, sessões, parcelas, taxas, recebimentos e repasses', async () => {
+    const app=await aplicacaoPromessa
+    const headers={authorization:'Bearer '+tokenAdministrador}
+    const fisio={authorization:'Bearer '+tokenFisioterapeuta}
+    const rota='/api/v1/financeiro/'
+    const post=(url:string,payload:object)=>app.inject({method:'POST',url:rota+url,headers,payload})
+    const patch=(url:string,payload:object)=>app.inject({method:'PATCH',url:rota+url,headers,payload})
+    const get=(url:string)=>app.inject({method:'GET',url:rota+url,headers})
+    const parceria=await post('parcerias',{nome:'Parceria '+sufixo,descontoPontosBase:1000})
+    expect(parceria.statusCode).toBe(201)
+    const plano=await post('planos',{nome:'Plano '+sufixo,servicoId:servicoIdAgenda,modalidade:'PACOTE',sessoes:1,valorCentavos:10001,validadeDias:60})
+    expect(plano.statusCode).toBe(201)
+    const planoId=plano.json().dados.id
+    const atendimento=await prisma.agendamento.findFirstOrThrow({where:{pacienteId,profissionalId:profissionalIdAgenda,servicoId:servicoIdAgenda,situacao:{in:['AGENDADO','CONFIRMADO','AGUARDANDO_CONFIRMACAO','EM_ATENDIMENTO']}}})
+    const dia=atendimento.inicioEm.toISOString().slice(0,10)
+    const payload={chaveOperacao:randomUUID(),pacienteId,planoId,parceriaId:parceria.json().dados.id,inicioEm:dia,primeiroVencimento:dia,quantidadeParcelas:3}
+    const criado=await post('contratos',payload)
+    expect(criado.statusCode).toBe(201)
+    const c=criado.json().dados
+    expect(c.valorFinalCentavos).toBe(9001)
+    expect(c.cobrancas.map((b:{valorCentavos:number})=>b.valorCentavos)).toEqual([3001,3000,3000])
+    expect((await post('contratos',payload)).statusCode).toBe(409)
+    expect((await patch('planos/'+planoId,{valorCentavos:20000})).statusCode).toBe(200)
+    expect((await prisma.contratoPlano.findUniqueOrThrow({where:{id:c.id}})).valorFinalCentavos).toBe(9001)
+    expect((await post('consumos',{contratoId:c.id,agendamentoId:atendimento.id})).statusCode).toBe(400)
+    expect((await app.inject({method:'PATCH',url:'/api/v1/agendamentos/'+atendimento.id,headers,payload:{situacao:'CONCLUIDO'}})).statusCode).toBe(200)
+    expect((await post('consumos',{contratoId:c.id,agendamentoId:atendimento.id})).statusCode).toBe(201)
+    expect((await post('consumos',{contratoId:c.id,agendamentoId:atendimento.id})).statusCode).toBe(409)
+    expect((await get('contratos?pacienteId='+pacienteId)).json().dados[0].sessoesRestantes).toBe(0)
+    const taxa=await post('taxas',{formaPagamento:'CREDITO',parcelas:3,pontosBase:350})
+    expect(taxa.statusCode).toBe(201)
+    const taxaId=taxa.json().dados.id
+    const b=c.cobrancas[0].id
+    const receber=(valorCentavos:number)=>post('cobrancas/'+b+'/recebimentos',{chaveOperacao:randomUUID(),valorCentavos,formaPagamento:'CREDITO',parcelas:3,taxaId})
+    const duplicados=await Promise.all([receber(2000),receber(2000)])
+    expect(duplicados.map(r=>r.statusCode).sort()).toEqual([201,409])
+    const r=duplicados.find(r=>r.statusCode===201)!.json().dados
+    expect(r.taxaCentavos).toBe(70)
+    expect((await post('taxas',{formaPagamento:'CREDITO',parcelas:3,pontosBase:500})).statusCode).toBe(201)
+    expect((await prisma.recebimento.findUniqueOrThrow({where:{id:r.id}})).taxaCentavos).toBe(70)
+    await expect(prisma.taxaPagamento.update({where:{id:taxaId},data:{pontosBase:99}})).rejects.toThrow()
+    const comissao=await post('comissoes',{recebimentoId:r.id,profissionalId:profissionalIdAgenda,pontosBase:2000})
+    expect(comissao.statusCode).toBe(201)
+    expect(comissao.json().dados.valorCentavos).toBe(386)
+    expect((await patch('recebimentos/'+r.id+'/estornar',{motivo:'Correção fictícia'})).statusCode).toBe(200)
+    expect((await prisma.comissao.findUniqueOrThrow({where:{id:comissao.json().dados.id}})).canceladaEm).not.toBeNull()
+    const integral=await receber(3001)
+    expect(integral.statusCode).toBe(201)
+    const r2=integral.json().dados
+    const repasse=await post('comissoes',{recebimentoId:r2.id,profissionalId:profissionalIdAgenda,pontosBase:2000})
+    expect(repasse.statusCode).toBe(201)
+    expect((await patch('comissoes/'+repasse.json().dados.id+'/pagar',{})).statusCode).toBe(200)
+    expect((await patch('recebimentos/'+r2.id+'/estornar',{motivo:'Correção fictícia'})).statusCode).toBe(409)
+    const lista=(await get('cobrancas?pacienteId='+pacienteId)).json().dados
+    expect(lista.find((item:{id:string})=>item.id===b).saldoCentavos).toBe(0)
+    expect(lista.find((item:{id:string})=>item.id===b).situacao).toBe('PAGA')
+    const hoje=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
+    const antes=(await get('relatorio?inicio='+hoje+'&fim='+hoje)).json().dados
+    const despesa=await post('despesas',{chaveOperacao:randomUUID(),descricao:'Despesa fictícia',categoria:'Material',valorCentavos:1000,ocorridaEm:hoje})
+    expect(despesa.statusCode).toBe(201)
+    const depois=(await get('relatorio?inicio='+hoje+'&fim='+hoje)).json().dados
+    expect(depois.saldoCentavos).toBe(antes.saldoCentavos-1000)
+    expect((await patch('despesas/'+despesa.json().dados.id+'/estornar',{motivo:'Correção fictícia'})).statusCode).toBe(200)
+    expect((await get('relatorio?inicio='+hoje+'&fim='+hoje)).json().dados.saldoCentavos).toBe(antes.saldoCentavos)
+    expect((await app.inject({method:'GET',url:rota+'relatorio?inicio='+hoje+'&fim='+hoje,headers:fisio})).statusCode).toBe(403)
+    const inicioNovo=new Date(Date.parse(c.fimEm)+86400000).toISOString().slice(0,10)
+    const novo=await post('contratos',{...payload,chaveOperacao:randomUUID(),renovacaoDeId:c.id,inicioEm:inicioNovo,primeiroVencimento:inicioNovo})
+    expect(novo.statusCode).toBe(201)
+    expect(novo.json().dados.valorFinalCentavos).toBe(18000)
+    expect((await post('contratos',{...payload,chaveOperacao:randomUUID(),renovacaoDeId:c.id,inicioEm:inicioNovo,primeiroVencimento:inicioNovo})).statusCode).toBe(409)
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({
