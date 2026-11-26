@@ -242,6 +242,67 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect(await prisma.registroAuditoria.count({ where: { entidade: 'entrada_prontuario', entidadeId: entrada.id } })).toBe(2)
   })
 
+  it('publica modelos versionados e recebe pre-consulta de uso unico', async () => {
+    const app = await aplicacaoPromessa
+    const admin = { authorization: 'Bearer ' + tokenAdministrador }
+    const fisio = { authorization: 'Bearer ' + tokenFisioterapeuta }
+    const atendimento = await prisma.agendamento.findFirstOrThrow({ where: { pacienteId, profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda } })
+    const payload = { titulo: 'Pre-consulta sintetica', servicoId: servicoIdAgenda, perguntas: [
+      { id: 'motivo', rotulo: 'Motivo', tipo: 'TEXTO', obrigatoria: true },
+      { id: 'sim', rotulo: 'Confirmacao', tipo: 'SIM_NAO', obrigatoria: true },
+    ] }
+    const modelo = await app.inject({ method: 'POST', url: '/api/v1/formularios/modelos', headers: admin, payload })
+    expect(modelo.statusCode).toBe(201)
+    const m = modelo.json().dados
+    const publicar = (id: string, revisao: number) => app.inject({ method: 'POST', url: '/api/v1/formularios/modelos/' + id + '/publicar', headers: admin, payload: { revisao } })
+    const emitir = (modeloId: string) => app.inject({ method: 'POST', url: '/api/v1/formularios/links', headers: admin, payload: { modeloId, agendamentoId: atendimento.id, validadeHoras: 48 } })
+    expect((await emitir(m.id)).statusCode).toBe(400)
+    expect((await publicar(m.id,m.revisao)).statusCode).toBe(200)
+    expect((await app.inject({ method: 'PATCH', url: '/api/v1/formularios/modelos/' + m.id, headers: admin, payload: { ...payload, revisao: m.revisao } })).statusCode).toBe(409)
+    const anterior = await emitir(m.id)
+    expect(anterior.statusCode).toBe(201)
+    const atual = await emitir(m.id)
+    expect(atual.statusCode).toBe(201)
+    const token = atual.json().dados.token
+    const consultar = (token: string) => app.inject({ method: 'POST', url: '/api/v1/formulario-publico/consultar', payload: { token } })
+    const enviar = (respostas: object) => app.inject({ method: 'POST', url: '/api/v1/formulario-publico/enviar', payload: { token, respostas } })
+    expect((await consultar(anterior.json().dados.token)).statusCode).toBe(410)
+    const publico = await consultar(token)
+    expect(publico.statusCode).toBe(200)
+    expect(publico.json().dados.pacienteId).toBeUndefined()
+    expect(publico.json().dados.perguntas).toHaveLength(2)
+    expect((await enviar({ motivo: 'Teste' })).statusCode).toBe(400)
+    expect((await enviar({ motivo: 'Teste', sim: 'false' })).statusCode).toBe(400)
+    expect((await enviar({ motivo: 'Teste', sim: false, extra: 'indevido' })).statusCode).toBe(400)
+    const resultados = await Promise.all([enviar({ motivo: 'Resposta sintetica', sim: false }), enviar({ motivo: 'Resposta sintetica', sim: false })])
+    expect(resultados.map(r => r.statusCode).sort()).toEqual([201,410])
+    expect((await consultar(token)).statusCode).toBe(410)
+    expect((await emitir(m.id)).statusCode).toBe(409)
+    const listagem = await app.inject({ method: 'GET', url: '/api/v1/formularios/links?agendamentoId=' + atendimento.id, headers: admin })
+    expect(listagem.statusCode).toBe(200)
+    expect(listagem.json().dados[0].tokenHash).toBeUndefined()
+    expect(listagem.json().dados[0].respostas[0].respostas).toBeUndefined()
+    const rota = '/api/v1/clinica/pacientes/' + pacienteId + '/prontuario'
+    expect((await app.inject({ method: 'GET', url: rota, headers: fisio })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'GET', url: rota, headers: admin })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'POST', url: '/api/v1/clinica/vinculos', headers: admin, payload: { profissionalId: profissionalIdAgenda, pacienteId, ativo: true } })).statusCode).toBe(200)
+    const prontuario = await app.inject({ method: 'GET', url: rota, headers: fisio })
+    expect(prontuario.statusCode).toBe(200)
+    expect(prontuario.json().dados.formularios[0].respostas.sim).toBe(false)
+    const respostaId = prontuario.json().dados.formularios[0].id
+    await expect(prisma.respostaFormulario.delete({ where: { id: respostaId } })).rejects.toThrow()
+    await expect(prisma.modeloFormulario.update({ where: { id: m.id }, data: { titulo: 'Alteracao indevida' } })).rejects.toThrow()
+    const nova = await app.inject({ method: 'POST', url: '/api/v1/formularios/modelos/' + m.id + '/versao', headers: admin, payload: {} })
+    expect(nova.statusCode).toBe(201)
+    expect(nova.json().dados.versao).toBe(2)
+    expect((await publicar(nova.json().dados.id,1)).statusCode).toBe(200)
+    const link2 = await emitir(nova.json().dados.id)
+    expect(link2.statusCode).toBe(201)
+    const token2 = link2.json().dados.token
+    await prisma.linkFormulario.update({ where: { id: link2.json().dados.id }, data: { expiraEm: new Date(0) } })
+    expect((await consultar(token2)).statusCode).toBe(410)
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

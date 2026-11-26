@@ -123,7 +123,9 @@ export async function registrarRotasProntuario(app: FastifyInstance) {
         const entradas = await t.entradaProntuario.findMany({ where: { prontuario: { pacienteId: id },
           OR: [{ situacao: 'FINALIZADO' }, { autorId: req.identidade!.id }] }, select: camposEntrada, orderBy: { criadaEm: 'desc' } })
         await auditoria(t, req.identidade!.id, 'CONSULTAR_PRONTUARIO', 'paciente', id)
-        return { paciente, entradas, usuarioId: req.identidade!.id }
+        const formularios = await t.respostaFormulario.findMany({ where: { link: { pacienteId: id } },
+          select: { id: true, respostas: true, enviadaEm: true, link: { select: { agendamentoId: true, modelo: { select: { titulo: true, versao: true, perguntas: true } } } } }, orderBy: { enviadaEm: 'desc' } })
+        return { paciente, entradas, formularios, usuarioId: req.identidade!.id }
       })
       return { dados }
     } catch(e) { return tratar(e, res) }

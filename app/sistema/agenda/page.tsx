@@ -298,6 +298,7 @@ export default function Agenda() {
         {quantidade > 1 && !selecionado && <p className="text-xs text-slate-600">Todas as sessões precisam estar livres. Se houver conflito, nenhuma será criada.</p>}
         {!selecionado && disponibilidade && <p role="status" className={disponibilidade.disponivel ? 'text-sm text-green-700' : 'text-sm text-red-700'}>{disponibilidade.disponivel ? disponibilidade.vagasRestantes + ' vaga(s) disponível(is)' : 'Horário indisponível'}</p>}
         {selecionado && <div className="flex flex-wrap gap-2 border-t pt-4 text-sm">
+            <Link href={'/sistema/formularios?agendamento=' + encodeURIComponent(selecionado.id)} className="rounded-lg border border-slate-300 px-3 py-2">Pré-consulta</Link>
           <button type="button" onClick={() => mudarSituacao('CONFIRMADO')} className="rounded-lg border border-slate-300 px-3 py-2">Confirmar</button>
           <button type="button" onClick={() => mudarSituacao('CONCLUIDO')} className="rounded-lg border border-slate-300 px-3 py-2">Concluir</button>
           <button type="button" onClick={() => mudarSituacao('NAO_COMPARECEU')} className="rounded-lg border border-slate-300 px-3 py-2">Falta</button>

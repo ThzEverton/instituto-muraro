@@ -123,6 +123,7 @@ model Servico {
   ativo          Boolean        @default(true)
   agendamentos   Agendamento[]
   profissionais ProfissionalServico[]
+  modelosFormulario ModeloFormulario[]
 
   @@map("servicos")
 }
@@ -188,6 +189,8 @@ model Agendamento {
   @@index([profissionalId, inicioEm, fimEm])
   @@index([pacienteId, inicioEm])
   @@index([salaId, inicioEm, fimEm])
+  linksFormulario LinkFormulario[]
+
   @@index([serieId])
   @@map("agendamentos")
 }
@@ -227,6 +230,13 @@ model ModeloFormulario {
   versao    Int
   situacao  String           @default("RASCUNHO")
   perguntas Json
+  revisao Int @default(1)
+  servicoId String? @map("servico_id")
+  servico Servico? @relation(fields: [servicoId], references: [id], onDelete: Restrict)
+  modeloAnteriorId String? @unique @map("modelo_anterior_id")
+  modeloAnterior ModeloFormulario? @relation("VersoesFormulario", fields: [modeloAnteriorId], references: [id], onDelete: Restrict)
+  proximaVersao ModeloFormulario? @relation("VersoesFormulario")
+  publicadoEm DateTime? @map("publicado_em")
   links     LinkFormulario[]
 
   @@map("modelos_formulario")
@@ -236,18 +246,25 @@ model LinkFormulario {
   id            String              @id @default(cuid())
   modeloId      String              @map("modelo_id")
   agendamentoId String              @map("agendamento_id")
+  pacienteId String? @map("paciente_id")
+  profissionalId String? @map("profissional_id")
+  servicoId String? @map("servico_id")
+  criadoEm DateTime @default(now()) @map("criado_em")
+  agendamento Agendamento @relation(fields: [agendamentoId], references: [id], onDelete: Restrict)
   tokenHash     String              @unique @map("token_hash")
   expiraEm      DateTime            @map("expira_em")
   revogadoEm    DateTime?           @map("revogado_em")
   modelo        ModeloFormulario    @relation(fields: [modeloId], references: [id], onDelete: Restrict)
   respostas     RespostaFormulario[]
 
+  @@index([agendamentoId, modeloId])
+  @@index([pacienteId])
   @@map("links_formulario")
 }
 
 model RespostaFormulario {
   id        String         @id @default(cuid())
-  linkId    String         @map("link_id")
+  linkId    String         @unique @map("link_id")
   respostas Json
   enviadaEm DateTime       @default(now()) @map("enviada_em")
   link      LinkFormulario @relation(fields: [linkId], references: [id], onDelete: Restrict)

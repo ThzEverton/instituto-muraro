@@ -8,7 +8,8 @@ type Profissional = { id: string; nome: string; usuarioId: string | null }
 type Conta = { id: string; nome: string; email: string; profissional: { id: string } | null }
 type Vinculo = { id: string; pacienteId: string; ativo: boolean; paciente: { nomeCompleto: string } }
 type Entrada = { id: string; autorId: string; autorNome: string | null; autorRegistro: string | null; tipo: string; texto: string; situacao: string; versao: number; criadaEm: string; finalizadaEm: string | null }
-type Prontuario = { paciente: Paciente; entradas: Entrada[]; usuarioId: string }
+type RespostaFormulario = { id: string; enviadaEm: string; respostas: Record<string, string | number | boolean | null>; link: { agendamentoId: string; modelo: { titulo: string; versao: number; perguntas: { id: string; rotulo: string }[] } } }
+type Prontuario = { paciente: Paciente; entradas: Entrada[]; usuarioId: string; formularios: RespostaFormulario[] }
 const tipos = [['ANAMNESE','Anamnese'],['AVALIACAO','Avaliação clínica'],['EVOLUCAO','Evolução'],['ADENDO','Adendo / correção']]
 const campo = 'mt-1 w-full rounded-lg border border-slate-300 bg-white p-2'
 const botao = 'rounded-lg bg-[#142b49] px-4 py-2 text-sm text-white disabled:opacity-50'
@@ -174,6 +175,13 @@ function Prontuarios() {
           <label className="block text-sm">Registro<textarea required maxLength={30000} rows={7} className={campo} value={texto} disabled={ocupado} onChange={e => setTexto(e.target.value)} placeholder="Registre as informações clínicas pertinentes ao atendimento."/></label>
           <div className="flex flex-wrap gap-2"><button className={secundario} disabled={ocupado || !texto.trim()}>Salvar rascunho</button><button type="button" className={botao} disabled={ocupado || !texto.trim()} onClick={() => salvar(true)}>Finalizar registro</button>{edicao && <button type="button" className={secundario} onClick={() => {setEdicao(null);setTexto('');setTipo('EVOLUCAO')}}>Cancelar edição</button>}</div>
         </form>}
+        <h3 className="font-semibold">Formulários de pré-consulta</h3>
+        <p className="text-xs text-slate-500">Respostas autodeclaradas pelo portador do link. Revise clinicamente antes de utilizá-las.</p>
+        {prontuario.formularios.map(f => <details key={f.id} className="rounded-xl border p-4">
+          <summary className="cursor-pointer font-medium">{f.link.modelo.titulo} (v{f.link.modelo.versao}) · {new Date(f.enviadaEm).toLocaleString('pt-BR')}</summary>
+          <dl className="mt-3 space-y-3">{f.link.modelo.perguntas.map(p => <div key={p.id}><dt className="text-sm font-medium">{p.rotulo}</dt><dd className="whitespace-pre-wrap break-words text-sm text-slate-600">{f.respostas[p.id] === true ? 'Sim' : f.respostas[p.id] === false ? 'Não' : String(f.respostas[p.id] ?? 'Não respondida')}</dd></div>)}</dl>
+        </details>)}
+        {!prontuario.formularios.length && <p className="text-sm text-slate-500">Nenhum formulário respondido.</p>}
         <h3 className="font-semibold">Histórico clínico</h3>
         {prontuario.entradas.map(item => <article key={item.id} className="rounded-xl border p-4">
           <div className="flex flex-wrap justify-between gap-2"><strong>{tipos.find(t => t[0] === item.tipo)?.[1]}</strong><span className="text-xs text-slate-500">{item.situacao === 'FINALIZADO' ? 'Finalizado' : 'Rascunho'}</span></div>

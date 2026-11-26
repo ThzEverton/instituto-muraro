@@ -206,6 +206,7 @@ export default function Sistema() {
           </div>
           <div className="flex gap-3">
             {autenticado && perfil === "ADMINISTRADOR" && <Link href="/sistema/prontuario" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Acessos clínicos</Link>}
+            {autenticado && <Link href="/sistema/formularios" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Formulários</Link>}
             {autenticado && <Link href="/sistema/agenda" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Agenda</Link>}
             {autenticado && <Link href="/sistema/cadastros" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Profissionais e serviços</Link>}
             <Link href="/" className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm"><ArrowLeft size={16} /> Voltar</Link>

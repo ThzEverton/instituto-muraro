@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 
 function rotaPermitida(caminho: string, metodo: string): boolean {
   if (caminho === 'autenticacao/entrar') return metodo === 'POST'
+  if (caminho === 'formularios/modelos' || caminho === 'formularios/links') return metodo === 'GET' || metodo === 'POST'
+  if (/^formularios\/(modelos|links)\/[^/]+$/.test(caminho)) return metodo === 'PATCH'
+  if (/^formularios\/modelos\/[^/]+\/(publicar|versao)$/.test(caminho)) return metodo === 'POST'
   if (caminho === 'autenticacao/sessao') return metodo === 'GET'
   if (caminho === 'clinica/contas' || caminho === 'clinica/vinculos') return metodo === 'GET' || metodo === 'POST'
   if (caminho === 'clinica/associacoes') return metodo === 'POST'
