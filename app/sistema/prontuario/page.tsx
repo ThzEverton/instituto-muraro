@@ -33,7 +33,7 @@ export default function Clinica() {
   }
   return <div className="m-modulo space-y-5">
     <SectionHeader eyebrow="GESTÃO CLÍNICA" title={perfil === 'ADMINISTRADOR' ? 'Gestão de acessos clínicos' : 'Prontuário clínico'} description="Registros e acessos clínicos conforme perfil."/>
-      {erro && <p role="alert" className="mb-3 text-red-700">{erro}</p>}
+      {erro && <p role="alert" className="mb-3 ux-erro">{erro}</p>}
       {!perfil && <p>Verificando sessão...</p>}
       {perfil === 'ADMINISTRADOR' && <Gestao />}
       {perfil === 'FISIOTERAPEUTA' && <Prontuarios />}
@@ -82,7 +82,7 @@ function Gestao() {
   const profissional = profissionais.find(p => p.id === profissionalId)
   return <section className="space-y-6 m-card">
     <div className="m-clinical-notice"><div><strong>Controle de acesso clínico</strong><p>1. Escolha um profissional. 2. Crie ou associe sua conta. 3. Autorize apenas os pacientes que ele atende. Administradores não acessam o conteúdo dos prontuários.</p></div></div>
-    {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+    {erro && <p role="alert" className="text-sm ux-erro">{erro}</p>}
     <label className="block text-sm">Profissional<select className={campo} value={profissionalId} disabled={ocupado} onChange={e => setProfissionalId(e.target.value)}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
     {!profissional&&<Empty title="Selecione um fisioterapeuta" description="Escolha um profissional para administrar sua conta e os vínculos com pacientes."/>}
     {profissional && <>
@@ -157,12 +157,12 @@ function Prontuarios() {
   return <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
     <aside className="m-card space-y-3 m-clinical-patients"><h2 className="font-semibold">Meus pacientes</h2>
       <form className="flex gap-2" onSubmit={e => {e.preventDefault(); buscar().catch(e => setErro(mensagem(e)))}}><input className="min-w-0 flex-1 rounded-lg border p-2" placeholder="Nome" value={busca} onChange={e => setBusca(e.target.value)}/><button className={secundario}>Buscar</button></form>
-      {pacientes.map(p => <button key={p.id} disabled={ocupado} className={'block w-full rounded-lg border p-3 text-left text-sm ' + (p.id === id ? 'border-[#3c897d] bg-teal-50' : '')} onClick={() => abrir(p.id)}>{p.nomeCompleto}{!p.ativo && ' (inativo)'}</button>)}
+      {pacientes.map(p => <button key={p.id} disabled={ocupado} className={'block w-full rounded-lg border p-3 text-left text-sm ' + (p.id === id ? 'ux-borda-selecao ux-selecao' : '')} onClick={() => abrir(p.id)}>{p.nomeCompleto}{!p.ativo && ' (inativo)'}</button>)}
       {!pacientes.length && <Empty title="Nenhum paciente encontrado" description="Verifique a pesquisa ou solicite ao administrador o vínculo clínico."/>}
       <div className="flex justify-between text-sm"><button className={secundario} disabled={pagina<=1} onClick={() => buscar(pagina-1).catch(e => setErro(mensagem(e)))}>Anterior</button><button className={secundario} disabled={pagina*50>=total} onClick={() => buscar(pagina+1).catch(e => setErro(mensagem(e)))}>Próxima</button></div>
     </aside>
     <section className="space-y-5 m-card">
-      {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+      {erro && <p role="alert" className="text-sm ux-erro">{erro}</p>}
       {!prontuario && <Empty title="Selecione um paciente" description="Escolha um paciente autorizado para consultar ou registrar o acompanhamento clínico."/>}
       {prontuario && <>
         <h2 className="text-xl font-semibold">{prontuario.paciente.nomeCompleto}</h2>
@@ -173,20 +173,20 @@ function Prontuarios() {
           <div className="flex flex-wrap gap-2"><button className={secundario} disabled={ocupado || !texto.trim()}>Salvar rascunho</button><button type="button" className={botao} disabled={ocupado || !texto.trim()} onClick={() => salvar(true)}>Finalizar registro</button>{edicao && <button type="button" className={secundario} onClick={() => {setEdicao(null);setTexto('');setTipo('EVOLUCAO')}}>Cancelar edição</button>}</div>
         </form>}
         <h3 className="font-semibold">Formulários de pré-consulta</h3>
-        <p className="text-xs text-slate-500">Respostas autodeclaradas pelo portador do link. Revise clinicamente antes de utilizá-las.</p>
+        <p className="text-xs ux-secundario">Respostas autodeclaradas pelo portador do link. Revise clinicamente antes de utilizá-las.</p>
         {prontuario.formularios.map(f => <details key={f.id} className="rounded-xl border p-4">
           <summary className="cursor-pointer font-medium">{f.link.modelo.titulo} (v{f.link.modelo.versao}) · {new Date(f.enviadaEm).toLocaleString('pt-BR')}</summary>
-          <dl className="mt-3 space-y-3">{f.link.modelo.perguntas.map(p => <div key={p.id}><dt className="text-sm font-medium">{p.rotulo}</dt><dd className="whitespace-pre-wrap break-words text-sm text-slate-600">{f.respostas[p.id] === true ? 'Sim' : f.respostas[p.id] === false ? 'Não' : String(f.respostas[p.id] ?? 'Não respondida')}</dd></div>)}</dl>
+          <dl className="mt-3 space-y-3">{f.link.modelo.perguntas.map(p => <div key={p.id}><dt className="text-sm font-medium">{p.rotulo}</dt><dd className="whitespace-pre-wrap break-words text-sm ux-secundario">{f.respostas[p.id] === true ? 'Sim' : f.respostas[p.id] === false ? 'Não' : String(f.respostas[p.id] ?? 'Não respondida')}</dd></div>)}</dl>
         </details>)}
-        {!prontuario.formularios.length && <p className="text-sm text-slate-500">Nenhum formulário respondido.</p>}
+        {!prontuario.formularios.length && <p className="text-sm ux-secundario">Nenhum formulário respondido.</p>}
         <h3 className="font-semibold">Histórico clínico</h3>
         {prontuario.entradas.map(item => <article key={item.id} className="rounded-xl border p-4">
           <div className="flex flex-wrap justify-between gap-2"><strong>{tipos.find(t => t[0] === item.tipo)?.[1]}</strong><Badge tone={item.situacao==="FINALIZADO"?"green":"amber"}>{item.situacao==="FINALIZADO"?"Finalizado":"Rascunho"}</Badge></div>
-          <p className="mt-1 text-xs text-slate-500">{item.autorNome ?? 'Autor cadastrado'} {item.autorRegistro && ' · ' + item.autorRegistro} · {new Date(item.finalizadaEm ?? item.criadaEm).toLocaleString('pt-BR')}</p>
+          <p className="mt-1 text-xs ux-secundario">{item.autorNome ?? 'Autor cadastrado'} {item.autorRegistro && ' · ' + item.autorRegistro} · {new Date(item.finalizadaEm ?? item.criadaEm).toLocaleString('pt-BR')}</p>
           <p className="mt-3 whitespace-pre-wrap break-words text-sm">{item.texto}</p>
-          {item.situacao === 'RASCUNHO' && item.autorId === prontuario.usuarioId && prontuario.paciente.ativo && <button disabled={ocupado} className="mt-3 text-sm text-[#2b668f] underline" onClick={() => {setEdicao(item);setTipo(item.tipo);setTexto(item.texto)}}>Editar rascunho</button>}
+          {item.situacao === 'RASCUNHO' && item.autorId === prontuario.usuarioId && prontuario.paciente.ativo && <button disabled={ocupado} className="mt-3 text-sm ux-link underline" onClick={() => {setEdicao(item);setTipo(item.tipo);setTexto(item.texto)}}>Editar rascunho</button>}
         </article>)}
-        {!prontuario.entradas.length && <p className="text-sm text-slate-500">Nenhum registro clínico disponível.</p>}
+        {!prontuario.entradas.length && <p className="text-sm ux-secundario">Nenhum registro clínico disponível.</p>}
       </>}
     </section>
   </div>

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "backend:dev": "corepack pnpm --dir backend dev",
     "backend:build": "corepack pnpm --dir backend build",
-    "backend:test": "corepack pnpm --dir backend test"
+    "backend:test": "corepack pnpm --dir backend test",
+    "ux:lint": "node scripts/ux_lint.mjs app components/physio"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

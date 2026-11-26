@@ -92,8 +92,8 @@ export default function Cadastros({tipo}:{tipo:Tipo}) {
     setEdicaoId(registro.id); setAberto(true); setErro('')
   }
   function campo(chave: keyof Formulario, rotulo: string, tipoCampo = 'text') {
-    return <label className="flex flex-col gap-1 text-sm text-slate-700">{rotulo}<input
-      className="rounded-lg border border-slate-300 px-3 py-2 text-slate-900"
+    return <label className="flex flex-col gap-1 text-sm ux-texto">{rotulo}<input
+      className="rounded-lg border ux-borda px-3 py-2 ux-texto"
       type={tipoCampo} value={String(formulario[chave])}
       onChange={(evento) => setFormulario((atual) => ({ ...atual, [chave]: evento.target.value }))}
       required={chave === 'nome' || chave === 'especialidade'}
