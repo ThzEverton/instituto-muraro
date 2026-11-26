@@ -1,21 +1,255 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum Role { ADMIN RECEPTION PROFESSIONAL }
-enum RecordStatus { DRAFT FINALIZED }
-enum ChargeStatus { PENDING PARTIAL PAID REVERSED }
-model User { id String @id @default(cuid()) name String email String @unique role Role active Boolean @default(true) createdAt DateTime @default(now()) auditLogs AuditLog[] }
-model Patient { id String @id @default(cuid()) name String phone String? active Boolean @default(true) createdAt DateTime @default(now()) appointments Appointment[] records MedicalRecord[] charges Charge[] }
-model Professional { id String @id @default(cuid()) name String specialty String active Boolean @default(true) appointments Appointment[] blocks CalendarBlock[] }
-model Service { id String @id @default(cuid()) name String durationMin Int priceCents Int active Boolean @default(true) appointments Appointment[] }
-model Appointment { id String @id @default(cuid()) patientId String professionalId String serviceId String startsAt DateTime endsAt DateTime status String @default("SCHEDULED") patient Patient @relation(fields:[patientId], references:[id]) professional Professional @relation(fields:[professionalId], references:[id]) service Service @relation(fields:[serviceId], references:[id]) }
-model CalendarBlock { id String @id @default(cuid()) professionalId String startsAt DateTime endsAt DateTime kind String recurring Boolean @default(false) professional Professional @relation(fields:[professionalId], references:[id]) }
-model AnamnesisTemplate { id String @id @default(cuid()) title String version Int status String @default("DRAFT") questions Json links AnamnesisLink[] }
-model AnamnesisLink { id String @id @default(cuid()) templateId String appointmentId String tokenHash String @unique expiresAt DateTime revokedAt DateTime? template AnamnesisTemplate @relation(fields:[templateId], references:[id]) }
-model AnamnesisResponse { id String @id @default(cuid()) linkId String answers Json submittedAt DateTime @default(now()) }
-model MedicalRecord { id String @id @default(cuid()) patientId String status RecordStatus @default(DRAFT) createdAt DateTime @default(now()) entries RecordEntry[] patient Patient @relation(fields:[patientId], references:[id]) }
-model RecordEntry { id String @id @default(cuid()) recordId String authorId String text String createdAt DateTime @default(now()) record MedicalRecord @relation(fields:[recordId], references:[id]) }
-model Charge { id String @id @default(cuid()) patientId String description String amountCents Int dueAt DateTime status ChargeStatus @default(PENDING) payments Payment[] patient Patient @relation(fields:[patientId], references:[id]) }
-model Payment { id String @id @default(cuid()) chargeId String amountCents Int paidAt DateTime @default(now()) reversedAt DateTime? charge Charge @relation(fields:[chargeId], references:[id]) }
-model Expense { id String @id @default(cuid()) description String amountCents Int occurredAt DateTime }
-model AuditLog { id String @id @default(cuid()) userId String action String entity String entityId String createdAt DateTime @default(now()) user User @relation(fields:[userId], references:[id]) }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PerfilUsuario {
+  ADMINISTRADOR
+  RECEPCAO
+  FISIOTERAPEUTA
+}
+
+enum SituacaoAgendamento {
+  AGENDADO
+  AGUARDANDO_CONFIRMACAO
+  CONFIRMADO
+  EM_ATENDIMENTO
+  CONCLUIDO
+  CANCELADO
+  NAO_COMPARECEU
+}
+
+enum SituacaoRegistro {
+  RASCUNHO
+  FINALIZADO
+}
+
+enum SituacaoCobranca {
+  PENDENTE
+  PARCIAL
+  PAGA
+  VENCIDA
+  CANCELADA
+  ESTORNADA
+}
+
+model Usuario {
+  id           String             @id @default(cuid())
+  nome         String
+  email        String             @unique
+  senhaHash    String             @map("senha_hash")
+  perfil       PerfilUsuario
+  ativo        Boolean            @default(true)
+  criadoEm     DateTime           @default(now()) @map("criado_em")
+  atualizadoEm DateTime           @updatedAt @map("atualizado_em")
+  sessoes      SessaoUsuario[]
+  auditorias   RegistroAuditoria[]
+
+  @@map("usuarios")
+}
+
+model SessaoUsuario {
+  id         String    @id @default(cuid())
+  usuarioId  String    @map("usuario_id")
+  tokenHash  String    @unique @map("token_hash")
+  expiraEm   DateTime  @map("expira_em")
+  revogadaEm DateTime? @map("revogada_em")
+  criadaEm   DateTime  @default(now()) @map("criada_em")
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([usuarioId, expiraEm])
+  @@map("sessoes_usuario")
+}
+
+model Paciente {
+  id                          String        @id @default(cuid())
+  nomeCompleto                String        @map("nome_completo")
+  cpf                         String?       @unique
+  dataNascimento              DateTime?     @db.Date @map("data_nascimento")
+  telefone                    String?
+  whatsapp                    String?
+  email                       String?
+  endereco                    String?
+  responsavelLegal            String?       @map("responsavel_legal")
+  contatoEmergencia           String?       @map("contato_emergencia")
+  observacoesAdministrativas  String?       @map("observacoes_administrativas")
+  formaAtendimento            String?       @map("forma_atendimento")
+  ativo                       Boolean       @default(true)
+  criadoEm                    DateTime      @default(now()) @map("criado_em")
+  atualizadoEm                DateTime      @updatedAt @map("atualizado_em")
+  agendamentos                Agendamento[]
+  prontuarios                 Prontuario[]
+  cobrancas                   Cobranca[]
+
+  @@index([nomeCompleto])
+  @@map("pacientes")
+}
+
+model Profissional {
+  id            String          @id @default(cuid())
+  nome          String
+  especialidade String
+  crefito       String?         @unique
+  telefone      String?
+  email         String?
+  corAgenda     String?         @map("cor_agenda")
+  ativo         Boolean         @default(true)
+  agendamentos  Agendamento[]
+  bloqueios     BloqueioAgenda[]
+
+  @@map("profissionais")
+}
+
+model Servico {
+  id             String         @id @default(cuid())
+  nome           String
+  categoria      String?
+  descricao      String?
+  duracaoMinutos Int            @map("duracao_minutos")
+  valorCentavos  Int            @map("valor_centavos")
+  capacidade     Int            @default(1)
+  ativo          Boolean        @default(true)
+  agendamentos   Agendamento[]
+
+  @@map("servicos")
+}
+
+model Agendamento {
+  id             String              @id @default(cuid())
+  pacienteId     String              @map("paciente_id")
+  profissionalId String              @map("profissional_id")
+  servicoId      String              @map("servico_id")
+  inicioEm       DateTime            @map("inicio_em")
+  fimEm          DateTime            @map("fim_em")
+  situacao       SituacaoAgendamento @default(AGENDADO)
+  paciente       Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profissional   Profissional        @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+  servico        Servico             @relation(fields: [servicoId], references: [id], onDelete: Restrict)
+
+  @@index([profissionalId, inicioEm, fimEm])
+  @@index([pacienteId, inicioEm])
+  @@map("agendamentos")
+}
+
+model BloqueioAgenda {
+  id             String       @id @default(cuid())
+  profissionalId String       @map("profissional_id")
+  inicioEm       DateTime     @map("inicio_em")
+  fimEm          DateTime     @map("fim_em")
+  tipo           String
+  recorrente     Boolean      @default(false)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+
+  @@index([profissionalId, inicioEm, fimEm])
+  @@map("bloqueios_agenda")
+}
+
+model ModeloFormulario {
+  id        String           @id @default(cuid())
+  titulo    String
+  versao    Int
+  situacao  String           @default("RASCUNHO")
+  perguntas Json
+  links     LinkFormulario[]
+
+  @@map("modelos_formulario")
+}
+
+model LinkFormulario {
+  id            String              @id @default(cuid())
+  modeloId      String              @map("modelo_id")
+  agendamentoId String              @map("agendamento_id")
+  tokenHash     String              @unique @map("token_hash")
+  expiraEm      DateTime            @map("expira_em")
+  revogadoEm    DateTime?           @map("revogado_em")
+  modelo        ModeloFormulario    @relation(fields: [modeloId], references: [id], onDelete: Restrict)
+  respostas     RespostaFormulario[]
+
+  @@map("links_formulario")
+}
+
+model RespostaFormulario {
+  id        String         @id @default(cuid())
+  linkId    String         @map("link_id")
+  respostas Json
+  enviadaEm DateTime       @default(now()) @map("enviada_em")
+  link      LinkFormulario @relation(fields: [linkId], references: [id], onDelete: Restrict)
+
+  @@map("respostas_formulario")
+}
+
+model Prontuario {
+  id         String             @id @default(cuid())
+  pacienteId String             @map("paciente_id")
+  situacao   SituacaoRegistro   @default(RASCUNHO)
+  criadoEm   DateTime           @default(now()) @map("criado_em")
+  paciente   Paciente           @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  entradas   EntradaProntuario[]
+
+  @@index([pacienteId])
+  @@map("prontuarios")
+}
+
+model EntradaProntuario {
+  id           String     @id @default(cuid())
+  prontuarioId String     @map("prontuario_id")
+  autorId      String     @map("autor_id")
+  texto        String
+  criadaEm     DateTime   @default(now()) @map("criada_em")
+  prontuario   Prontuario @relation(fields: [prontuarioId], references: [id], onDelete: Restrict)
+
+  @@index([prontuarioId, criadaEm])
+  @@map("entradas_prontuario")
+}
+
+model Cobranca {
+  id            String           @id @default(cuid())
+  pacienteId    String           @map("paciente_id")
+  descricao     String
+  valorCentavos Int              @map("valor_centavos")
+  vencimentoEm  DateTime         @map("vencimento_em")
+  situacao      SituacaoCobranca @default(PENDENTE)
+  paciente      Paciente         @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  recebimentos  Recebimento[]
+
+  @@index([pacienteId, vencimentoEm])
+  @@map("cobrancas")
+}
+
+model Recebimento {
+  id            String    @id @default(cuid())
+  cobrancaId    String    @map("cobranca_id")
+  valorCentavos Int       @map("valor_centavos")
+  recebidoEm    DateTime  @default(now()) @map("recebido_em")
+  estornadoEm   DateTime? @map("estornado_em")
+  cobranca      Cobranca  @relation(fields: [cobrancaId], references: [id], onDelete: Restrict)
+
+  @@index([cobrancaId])
+  @@map("recebimentos")
+}
+
+model Despesa {
+  id            String   @id @default(cuid())
+  descricao     String
+  valorCentavos Int      @map("valor_centavos")
+  ocorridaEm    DateTime @map("ocorrida_em")
+
+  @@map("despesas")
+}
+
+model RegistroAuditoria {
+  id         String   @id @default(cuid())
+  usuarioId  String   @map("usuario_id")
+  acao       String
+  entidade   String
+  entidadeId String   @map("entidade_id")
+  criadoEm   DateTime @default(now()) @map("criado_em")
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@index([entidade, entidadeId, criadoEm])
+  @@map("registros_auditoria")
+}

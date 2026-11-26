@@ -26,6 +26,14 @@ Há telas e rotas parciais, registradas na matriz. Nenhuma cumpre todos os crit�
 
 Concluir a tradução controlada de contratos e schema, criar migração PostgreSQL inicial não destrutiva, conectar repositórios Prisma, implementar autenticação e sessões persistentes, depois integrar o frontend. Os critérios de #2, #3, #4, #5, #22, #23 e #33 têm prioridade. Não usar a PR #34 como fundação pronta.
 
+## Continuação da fundação nesta sessão
+
+Foi criado o servidor novo em `backend/src/servidor.ts`, que substitui o servidor demo nos scripts. O schema e a migração inicial usam nomes de domínio em português. Autenticação com senha scrypt, sessão persistida com token em hash, expiração, logout e perfis no servidor foi implementada para as rotas novas. O cadastro, consulta, busca, edição e inativação de pacientes usam Prisma e auditoria em transação. O Next.js ganhou `/sistema` e um proxy com cookie HttpOnly para esse fluxo. A tela demonstrativa antiga permanece isolada e ainda não foi refatorada.
+
+A migração inicial foi aplicada **somente** ao PostgreSQL sintético isolado em Docker na porta 5433. O teste de integração com banco passou, mas a interface ainda não passou por teste de navegador. Nenhuma função FB foi marcada como concluída, porque as demais partes do escopo e a integração global ainda faltam.
+
+Próxima tarefa: completar responsáveis e histórico de paciente; vincular profissionais e serviços; implementar recuperação de senha, acesso clínico por vínculo e proteção de anexos. Depois migrar as demais telas do protótipo para a API.
+
 ## Bloqueios externos
 
 Conteúdo clínico de fisioterapia pélvica, regras comerciais de desconto/comissão, critérios contábeis e aceite operacional dependem da clínica. Hospedagem e credenciais de integração seguem indefinidas. Trabalho local independente pode continuar.

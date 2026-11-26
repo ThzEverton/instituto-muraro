@@ -1,0 +1,17 @@
+# API em português
+
+O servidor novo está em `backend/src/servidor.ts` e usa Prisma/PostgreSQL. Rotas disponíveis nesta etapa:
+
+| Método | Rota | Acesso |
+| --- | --- | --- |
+| GET | `/api/v1/saude` | Público, verifica banco |
+| POST | `/api/v1/autenticacao/entrar` | Público, limite de 5 tentativas/minuto |
+| POST | `/api/v1/autenticacao/sair` | Sessão válida |
+| GET | `/api/v1/pacientes` | Administração/recepção |
+| POST | `/api/v1/pacientes` | Administração/recepção |
+| GET | `/api/v1/pacientes/:id` | Administração/recepção |
+| PATCH | `/api/v1/pacientes/:id` | Administração/recepção |
+
+Sessões são persistidas com hash SHA-256 do token e expiram após oito horas. Senhas são derivadas com scrypt e sal aleatório. A API usa `Authorization: Bearer <token>`, configura CORS por `CORS_ORIGIN` e retorna mensagens de erro sem dados clínicos. O frontend demonstrativo ainda não consome esta API.
+
+Rotas antigas em inglês continuam apenas no arquivo histórico `backend/src/server.ts`, fora dos scripts de inicialização. Não usá-las como contrato novo.
