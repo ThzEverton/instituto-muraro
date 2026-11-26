@@ -2,8 +2,8 @@ import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
-import { consultaAgenda, consultaDisponibilidade, dataLocal, edicaoAgendamento, entradaAgendamento, entradaBloqueio } from './agenda.validacao.js'
-import { ConflitoAgenda, DadosAgendaInvalidos, verificarEGravarAgendamento } from './agenda.servico.js'
+import { consultaAgenda, consultaDisponibilidade, dataLocal, edicaoAgendamento, entradaAgendamento, entradaBloqueio, entradaSala, entradaSerie } from './agenda.validacao.js'
+import { ConflitoAgenda, DadosAgendaInvalidos, verificarEGravarAgendamento, criarSerie } from './agenda.servico.js'
 
 const perfis = ['ADMINISTRADOR', 'RECEPCAO'] as const
 
@@ -14,10 +14,37 @@ function erroAgenda(erro: unknown, resposta: { code: (status: number) => { send:
 }
 
 export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
+  aplicacao.get('/api/v1/salas', { preHandler: exigirPerfis([...perfis]) }, async () => {
+    return { dados: await prisma.sala.findMany({ orderBy: { nome: 'asc' } }) }
+  })
+  aplicacao.post('/api/v1/salas', { preHandler: exigirPerfis(['ADMINISTRADOR']) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const r = entradaSala.safeParse(requisicao.body)
+    if (!r.success) return resposta.code(400).send({ erro: 'Dados da sala invalidos' })
+    try {
+      const sala = await prisma.$transaction(async t => {
+        const item = await t.sala.create({ data: r.data })
+        await t.registroAuditoria.create({ data: { usuarioId: requisicao.identidade!.id, acao: 'CRIAR', entidade: 'sala', entidadeId: item.id } })
+        return item
+      })
+      return resposta.code(201).send({ dados: sala })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') return resposta.code(409).send({ erro: 'Nome de sala ja cadastrado' })
+      throw e
+    }
+  })
+  aplicacao.post('/api/v1/agendamentos/serie', { preHandler: exigirPerfis([...perfis]) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const r = entradaSerie.safeParse(requisicao.body)
+    if (!r.success) return resposta.code(400).send({ erro: 'Dados da serie invalidos' })
+    const { quantidade, intervaloSemanas, ...dados } = r.data
+    try {
+      const serie = await criarSerie({ ...dados, inicioEm: new Date(dados.inicioEm), fimEm: new Date(dados.fimEm) }, requisicao.identidade!.id, quantidade, intervaloSemanas)
+      return resposta.code(201).send({ dados: serie })
+    } catch (e) { return erroAgenda(e, resposta) }
+  })
   aplicacao.get('/api/v1/agenda/disponibilidade', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
     const resultado = consultaDisponibilidade.safeParse(requisicao.query)
     if (!resultado.success) return resposta.code(400).send({ erro: 'Consulta inválida' })
-    const { profissionalId, servicoId, inicioEm } = resultado.data
+    const { profissionalId, servicoId, inicioEm, salaId } = resultado.data
     const inicio = new Date(inicioEm)
     const servico = await prisma.servico.findUnique({ where: { id: servicoId } })
     const profissional = await prisma.profissional.findUnique({ where: { id: profissionalId } })
@@ -38,7 +65,13 @@ export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
       item.inicioMinuto <= localInicio.minuto && item.fimMinuto >= localFim.minuto)
     const compativel = agendamentos.every((item) => item.servicoId === servicoId)
     const vagasRestantes = vinculo && dentroDoExpediente && !bloqueios && compativel ? Math.max(0, servico.capacidade - agendamentos.length) : 0
-    return { dados: { disponivel: vagasRestantes > 0, vagasRestantes } }
+    let vagas = vagasRestantes
+    if (salaId) {
+      const sala = await prisma.sala.findUnique({ where: { id: salaId } })
+      const ocupacao = await prisma.agendamento.count({ where: { salaId, situacao: { in: ['AGENDADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO', 'EM_ATENDIMENTO'] }, inicioEm: { lt: fim }, fimEm: { gt: inicio } } })
+      vagas = sala?.ativo ? Math.min(vagas, Math.max(0, sala.capacidade - ocupacao)) : 0
+    }
+    return { dados: { disponivel: vagas > 0, vagasRestantes: vagas } }
   })
 
   aplicacao.get('/api/v1/agenda/bloqueios', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
@@ -148,6 +181,7 @@ export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
       pacienteId: alteracoes.pacienteId ?? existente.pacienteId,
       profissionalId: alteracoes.profissionalId ?? existente.profissionalId,
       servicoId: alteracoes.servicoId ?? existente.servicoId,
+      salaId: alteracoes.salaId === undefined ? existente.salaId : alteracoes.salaId,
       inicioEm: new Date(alteracoes.inicioEm ?? existente.inicioEm),
       fimEm: new Date(alteracoes.fimEm ?? existente.fimEm),
     }

@@ -52,3 +52,7 @@ Conteúdo clínico de fisioterapia pélvica, regras comerciais de desconto/comis
 Concluídos os bloqueios manuais de um dia por profissional, desbloqueio pela agenda, visualização dos bloqueios, consulta de disponibilidade e contagem de vagas. A API usa a mesma trava transacional dos agendamentos e registra auditoria. Migração conferida no PostgreSQL local isolado (porta 5433). Todos os 13 testes passaram, incluindo bloqueio, recusa de agendamento e liberação de vagas; tipagem e builds passaram. A interface ainda requer homologação visual.
 
 Próximos blocos: recorrência, locais e capacidade por local, feriados/férias; prontuário e autorização por vínculo profissional-paciente. Não há deploy nem alteração de hospedagem.
+
+## Salas e recorrencia
+
+Criados modelos Sala e SerieAgendamento, migracao aditiva e integracao da agenda com cadastro de sala e repeticao de 2 a 52 sessoes em intervalos de 1 a 4 semanas. Criacao de serie em transacao atomica; conflitos de paciente e capacidade da sala validados no servidor. Migracao aplicada somente ao PostgreSQL local de testes. 14 testes passaram, incluindo reversao integral de serie com conflito; builds e tipagem aprovados. Pendentes: edicao/inativacao de salas, cancelamento em lote da serie, feriados/ferias e teste visual.

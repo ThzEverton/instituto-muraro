@@ -8,13 +8,14 @@ const situacoesOcupadas: SituacaoAgendamento[] = [
 
 export type DadosAgendamento = {
   pacienteId: string; profissionalId: string; servicoId: string;
-  inicioEm: Date; fimEm: Date;
+  inicioEm: Date; fimEm: Date; salaId?: string | null; serieId?: string;
 }
 
 export class ConflitoAgenda extends Error {}
 export class DadosAgendaInvalidos extends Error {}
 
-export async function verificarEGravarAgendamento(
+async function gravarNaTransacao(
+  transacao: Prisma.TransactionClient,
   dados: DadosAgendamento,
   usuarioId: string,
   id?: string,
@@ -25,9 +26,22 @@ export async function verificarEGravarAgendamento(
   if (inicio.data !== fim.data || dados.fimEm <= dados.inicioEm) {
     throw new DadosAgendaInvalidos('Agendamento deve ocorrer em um único dia')
   }
-  return prisma.$transaction(async (transacao) => {
     // Serializa alterações da agenda do mesmo profissional e dia.
     await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${dados.profissionalId}), hashtext(${inicio.data}))::text`
+    await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'paciente:' + dados.pacienteId}), hashtext(${inicio.data}))::text`
+    if (dados.salaId) await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${'sala:' + dados.salaId}), hashtext(${inicio.data}))::text`
+    const ocupadoPaciente = await transacao.agendamento.findFirst({
+      where: { pacienteId: dados.pacienteId, id: id ? { not: id } : undefined, situacao: { in: situacoesOcupadas }, inicioEm: { lt: dados.fimEm }, fimEm: { gt: dados.inicioEm } },
+    })
+    if (ocupadoPaciente) throw new ConflitoAgenda('Paciente ja possui atendimento no horario')
+    if (dados.salaId) {
+      const sala = await transacao.sala.findUnique({ where: { id: dados.salaId } })
+      if (!sala?.ativo) throw new DadosAgendaInvalidos('Sala inexistente ou inativa')
+      const ocupacao = await transacao.agendamento.count({
+        where: { salaId: dados.salaId, id: id ? { not: id } : undefined, situacao: { in: situacoesOcupadas }, inicioEm: { lt: dados.fimEm }, fimEm: { gt: dados.inicioEm } },
+      })
+      if (ocupacao >= sala.capacidade) throw new ConflitoAgenda('Capacidade da sala esgotada')
+    }
     const [paciente, profissional, servico] = await Promise.all([
       transacao.paciente.findUnique({ where: { id: dados.pacienteId }, select: { ativo: true } }),
       transacao.profissional.findUnique({ where: { id: dados.profissionalId }, select: { ativo: true } }),
@@ -78,5 +92,28 @@ export async function verificarEGravarAgendamento(
       data: { usuarioId, acao: id ? 'REAGENDAR' : 'AGENDAR', entidade: 'agendamento', entidadeId: agendamento.id },
     })
     return agendamento
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 })
+}
+
+export async function verificarEGravarAgendamento(dados: DadosAgendamento, usuarioId: string, id?: string, situacao?: SituacaoAgendamento) {
+  return prisma.$transaction(t => gravarNaTransacao(t, dados, usuarioId, id, situacao),
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 })
+}
+
+export async function criarSerie(dados: DadosAgendamento, usuarioId: string, quantidade: number, intervaloSemanas: number) {
+  return prisma.$transaction(async t => {
+    const serie = await t.serieAgendamento.create({ data: { quantidade, intervaloSemanas } })
+    const agendamentos = []
+    for (let i = 0; i < quantidade; i++) {
+      const deslocamento = i * intervaloSemanas * 7 * 86400000
+      const inicioEm = new Date(dados.inicioEm.getTime() + deslocamento)
+      const fimEm = new Date(dados.fimEm.getTime() + deslocamento)
+      try {
+        agendamentos.push(await gravarNaTransacao(t, { ...dados, inicioEm, fimEm, serieId: serie.id }, usuarioId))
+      } catch (erro) {
+        if (erro instanceof ConflitoAgenda) throw new ConflitoAgenda(dataLocal(inicioEm).data + ': ' + erro.message)
+        throw erro
+      }
+    }
+    return { serieId: serie.id, agendamentos }
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 30000 })
 }

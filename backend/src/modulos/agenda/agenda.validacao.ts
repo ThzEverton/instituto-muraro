@@ -4,11 +4,23 @@ const camposAgendamento = z.object({
   pacienteId: z.string().min(1),
   profissionalId: z.string().min(1),
   servicoId: z.string().min(1),
+  salaId: z.string().min(1).nullable().optional(),
   inicioEm: z.iso.datetime({ offset: true }),
   fimEm: z.iso.datetime({ offset: true }),
 }).strict()
 
 export const entradaAgendamento = camposAgendamento.refine((dados) => new Date(dados.fimEm) > new Date(dados.inicioEm), 'Intervalo inválido')
+
+export const entradaSerie = camposAgendamento.extend({
+  quantidade: z.number().int().min(2).max(52),
+  intervaloSemanas: z.number().int().min(1).max(4),
+}).refine((dados) => new Date(dados.fimEm) > new Date(dados.inicioEm), 'Intervalo invalido')
+
+export const entradaSala = z.object({
+  nome: z.string().trim().min(2).max(100),
+  capacidade: z.number().int().min(1).max(100),
+  ativo: z.boolean().optional(),
+}).strict()
 
 export const edicaoAgendamento = camposAgendamento.partial().extend({
   situacao: z.enum([
@@ -47,6 +59,7 @@ export const entradaBloqueio = z.object({
 }).strict().refine((dados) => new Date(dados.fimEm) > new Date(dados.inicioEm), 'Intervalo inválido')
 
 export const consultaDisponibilidade = z.object({
+  salaId: z.string().min(1).optional(),
   profissionalId: z.string().min(1),
   servicoId: z.string().min(1),
   inicioEm: z.iso.datetime({ offset: true }),

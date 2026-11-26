@@ -154,6 +154,27 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect((await consultar()).json().dados).toEqual({ disponivel: true, vagasRestantes: 3 })
   })
 
+  it('cria serie semanal atomica e respeita capacidade da sala', async () => {
+    const aplicacao = await aplicacaoPromessa
+    const headers = { authorization: 'Bearer ' + tokenAdministrador }
+    const sala = await aplicacao.inject({ method: 'POST', url: '/api/v1/salas', headers, payload: { nome: 'Sala ' + sufixo, capacidade: 1 } })
+    expect(sala.statusCode).toBe(201)
+    const salaId = sala.json().dados.id
+    const base = { pacienteId, profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda, salaId,
+      inicioEm: '2026-11-30T08:00:00-03:00', fimEm: '2026-11-30T08:50:00-03:00' }
+    const serie = await aplicacao.inject({ method: 'POST', url: '/api/v1/agendamentos/serie', headers, payload: { ...base, quantidade: 2, intervaloSemanas: 1 } })
+    expect(serie.statusCode).toBe(201)
+    expect(await prisma.agendamento.count({ where: { serieId: serie.json().dados.serieId } })).toBe(2)
+    const outro = await prisma.paciente.create({ data: { nomeCompleto: 'Outro ' + sufixo } })
+    const conflito = await aplicacao.inject({ method: 'POST', url: '/api/v1/agendamentos', headers, payload: { ...base, pacienteId: outro.id } })
+    expect(conflito.statusCode).toBe(409)
+    const recusada = await aplicacao.inject({ method: 'POST', url: '/api/v1/agendamentos/serie', headers, payload: {
+      ...base, pacienteId: outro.id, inicioEm: '2026-11-23T08:00:00-03:00', fimEm: '2026-11-23T08:50:00-03:00', quantidade: 2, intervaloSemanas: 1
+    } })
+    expect(recusada.statusCode).toBe(409)
+    expect(await prisma.agendamento.count({ where: { pacienteId: outro.id } })).toBe(0)
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

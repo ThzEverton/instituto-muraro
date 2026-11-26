@@ -6,6 +6,8 @@ function rotaPermitida(caminho: string, metodo: string): boolean {
   if (caminho === 'saude') return metodo === 'GET'
   if (caminho === 'pacientes') return metodo === 'GET' || metodo === 'POST'
   if (caminho === 'profissionais' || caminho === 'servicos') return metodo === 'GET' || metodo === 'POST'
+  if (caminho === 'agendamentos/serie') return metodo === 'POST'
+  if (caminho === 'salas') return metodo === 'GET' || metodo === 'POST'
   if (caminho === 'agendamentos') return metodo === 'GET' || metodo === 'POST'
   if (caminho === 'agenda/disponibilidade' || caminho === 'agenda/bloqueios') return metodo === 'GET' || (caminho === 'agenda/bloqueios' && metodo === 'POST')
   if (/^agenda\/bloqueios\/[^/]+$/.test(caminho)) return metodo === 'PATCH'

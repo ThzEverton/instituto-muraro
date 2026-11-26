@@ -143,6 +143,26 @@ model ExpedienteProfissional {
   @@map("expedientes_profissional")
 }
 
+model Sala {
+  id           String        @id @default(cuid())
+  nome         String        @unique
+  capacidade   Int           @default(1)
+  ativo        Boolean       @default(true)
+  agendamentos Agendamento[]
+
+  @@map("salas")
+}
+
+model SerieAgendamento {
+  id              String        @id @default(cuid())
+  intervaloSemanas Int          @map("intervalo_semanas")
+  quantidade      Int
+  criadaEm        DateTime      @default(now()) @map("criada_em")
+  agendamentos    Agendamento[]
+
+  @@map("series_agendamento")
+}
+
 model Agendamento {
   id             String              @id @default(cuid())
   pacienteId     String              @map("paciente_id")
@@ -151,12 +171,18 @@ model Agendamento {
   inicioEm       DateTime            @map("inicio_em")
   fimEm          DateTime            @map("fim_em")
   situacao       SituacaoAgendamento @default(AGENDADO)
+  salaId         String?             @map("sala_id")
+  serieId        String?             @map("serie_id")
+  sala           Sala?               @relation(fields: [salaId], references: [id], onDelete: Restrict)
+  serie          SerieAgendamento?   @relation(fields: [serieId], references: [id], onDelete: Restrict)
   paciente       Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
   profissional   Profissional        @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
   servico        Servico             @relation(fields: [servicoId], references: [id], onDelete: Restrict)
 
   @@index([profissionalId, inicioEm, fimEm])
   @@index([pacienteId, inicioEm])
+  @@index([salaId, inicioEm, fimEm])
+  @@index([serieId])
   @@map("agendamentos")
 }
 

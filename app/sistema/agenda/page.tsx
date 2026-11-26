@@ -13,9 +13,10 @@ type Profissional = { id: string; nome: string; ativo: boolean; corAgenda: strin
 type Servico = { id: string; nome: string; duracaoMinutos: number; ativo: boolean; profissionais: { profissionalId: string }[] }
 type Agendamento = {
   id: string; pacienteId: string; profissionalId: string; servicoId: string;
-  inicioEm: string; fimEm: string; situacao: string;
+  inicioEm: string; fimEm: string; situacao: string; salaId?: string | null; serieId?: string | null;
 }
 type Bloqueio = { id: string; profissionalId: string; inicioEm: string; fimEm: string; tipo: string }
+type Sala = { id: string; nome: string; capacidade: number; ativo: boolean }
 type Formulario = { pacienteId: string; profissionalId: string; servicoId: string; inicioEm: string }
 
 async function api<T>(rota: string, opcoes?: RequestInit): Promise<T> {
@@ -37,6 +38,13 @@ export default function Agenda() {
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [salas, setSalas] = useState<Sala[]>([])
+  const [salaId, setSalaId] = useState('')
+  const [quantidade, setQuantidade] = useState(1)
+  const [intervaloSemanas, setIntervaloSemanas] = useState(1)
+  const [salaAberta, setSalaAberta] = useState(false)
+  const [nomeSala, setNomeSala] = useState('')
+  const [capacidadeSala, setCapacidadeSala] = useState(1)
   const [bloqueios, setBloqueios] = useState<Bloqueio[]>([])
   const [bloqueioAberto, setBloqueioAberto] = useState(false)
   const [formBloqueio, setFormBloqueio] = useState({ profissionalId: '', inicioEm: '', fimEm: '', tipo: '' })
@@ -55,6 +63,7 @@ export default function Agenda() {
       api<{ dados: Profissional[] }>('profissionais?ativo=true&limite=100'),
       api<{ dados: Servico[] }>('servicos?ativo=true&limite=100'),
     ])
+    setSalas((await api<{ dados: Sala[] }>('salas')).dados)
     setPacientes(resultadoPacientes.dados)
     setProfissionais(resultadoProfissionais.dados)
     setServicos(resultadoServicos.dados)
@@ -86,6 +95,8 @@ export default function Agenda() {
     setIntervalo({ inicio: dados.start.toISOString(), fim: dados.end.toISOString() })
   }
   function selecionar(dados: DateSelectArg) {
+    setSalaId(''); setQuantidade(1); setIntervaloSemanas(1)
+    setDisponibilidade(null)
     setSelecionado(null)
     setFormulario({
       pacienteId: pacientes[0]?.id ?? '', profissionalId: filtroProfissional || (profissionais[0]?.id ?? ''),
@@ -101,12 +112,22 @@ export default function Agenda() {
     }
     const agendamento = agendamentos.find((item) => item.id === dados.event.id)
     if (!agendamento) return
+    setSalaId(agendamento.salaId ?? ''); setQuantidade(1); setIntervaloSemanas(1)
     setSelecionado(agendamento)
     setFormulario({
       pacienteId: agendamento.pacienteId, profissionalId: agendamento.profissionalId,
       servicoId: agendamento.servicoId, inicioEm: horarioLocal(new Date(agendamento.inicioEm)),
     })
     setAberto(true); setErro('')
+  }
+  async function salvarSala(evento: FormEvent) {
+    evento.preventDefault(); setCarregando(true); setErro('')
+    try {
+      await api('salas', { method: 'POST', body: JSON.stringify({ nome: nomeSala, capacidade: capacidadeSala }) })
+      setSalas((await api<{ dados: Sala[] }>('salas')).dados)
+      setSalaAberta(false)
+    } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao cadastrar sala') }
+    finally { setCarregando(false) }
   }
   async function desbloquear(id: string) {
     setErro('')
@@ -134,11 +155,12 @@ export default function Agenda() {
     const inicio = new Date(formulario.inicioEm)
     if (Number.isNaN(inicio.getTime())) return
     const parametros = new URLSearchParams({ profissionalId: formulario.profissionalId, servicoId: formulario.servicoId, inicioEm: inicio.toISOString() })
+    if (salaId) parametros.set('salaId', salaId)
     api<{ dados: { disponivel: boolean; vagasRestantes: number } }>('agenda/disponibilidade?' + parametros)
       .then((r) => { if (vigente) setDisponibilidade(r.dados) })
       .catch(() => { if (vigente) setDisponibilidade(null) })
     return () => { vigente = false }
-  }, [aberto, selecionado, formulario.profissionalId, formulario.servicoId, formulario.inicioEm])
+  }, [aberto, selecionado, formulario.profissionalId, formulario.servicoId, formulario.inicioEm, salaId])
   async function mover(dados: EventDropArg) {
     const inicio = dados.event.start
     const fim = dados.event.end
@@ -157,11 +179,12 @@ export default function Agenda() {
     const inicio = new Date(formulario.inicioEm)
     const fim = new Date(inicio.getTime() + servico.duracaoMinutos * 60_000)
     try {
-      await api(selecionado ? `agendamentos/${selecionado.id}` : 'agendamentos', {
+      await api(selecionado ? `agendamentos/${selecionado.id}` : quantidade > 1 ? 'agendamentos/serie' : 'agendamentos', {
         method: selecionado ? 'PATCH' : 'POST',
         body: JSON.stringify({
           pacienteId: formulario.pacienteId, profissionalId: formulario.profissionalId,
-          servicoId: formulario.servicoId, inicioEm: inicio.toISOString(), fimEm: fim.toISOString(),
+          servicoId: formulario.servicoId, inicioEm: inicio.toISOString(), fimEm: fim.toISOString(), salaId: salaId || null,
+          ...(!selecionado && quantidade > 1 ? { quantidade, intervaloSemanas } : {}),
         }),
       })
       setAberto(false)
@@ -190,11 +213,21 @@ export default function Agenda() {
         <button type="button" className="mb-4 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => {
           setErro(''); setFormBloqueio({ profissionalId: filtroProfissional || profissionais[0]?.id || '', inicioEm: '', fimEm: '', tipo: '' }); setBloqueioAberto(true)
         }}>Bloquear horário</button>
+        <button type="button" className="mb-4 ml-2 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => { setNomeSala(''); setCapacidadeSala(1); setErro(''); setSalaAberta(true) }}>Cadastrar sala</button>
         <FullCalendar plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} initialView="timeGridWeek" locale="pt-br"
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' }}
           allDaySlot={false} selectable editable events={eventos} datesSet={datasAlteradas}
           select={selecionar} eventClick={clicarEvento} eventDrop={mover} height="auto" />
       </section>
+      {salaAberta && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+        <form onSubmit={salvarSala} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+          <h2 className="text-xl font-semibold">Cadastrar sala</h2>
+          <label className="block text-sm">Nome<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={nomeSala} onChange={e => setNomeSala(e.target.value)} /></label>
+          <label className="block text-sm">Capacidade<input required type="number" min={1} max={100} className="mt-1 w-full rounded-lg border p-2" value={capacidadeSala} onChange={e => setCapacidadeSala(Number(e.target.value))} /></label>
+          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setSalaAberta(false)} className="rounded-lg border px-4 py-2">Fechar</button><button disabled={carregando} className="rounded-lg bg-[#142b49] px-4 py-2 text-white">Salvar</button></div>
+        </form>
+      </div>}
       {bloqueioAberto && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
         <form onSubmit={salvarBloqueio} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
           <h2 className="text-xl font-semibold">Bloquear horário</h2>
@@ -213,6 +246,12 @@ export default function Agenda() {
         <label className="block text-sm">Serviço<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.servicoId} onChange={(evento) => setFormulario((atual) => ({ ...atual, servicoId: evento.target.value }))}><option value="">Selecione</option>{servicosDisponiveis.map((servico) => <option value={servico.id} key={servico.id}>{servico.nome} · {servico.duracaoMinutos} min</option>)}</select></label>
         <label className="block text-sm">Início<input required type="datetime-local" className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.inicioEm} onChange={(evento) => setFormulario((atual) => ({ ...atual, inicioEm: evento.target.value }))} /></label>
         {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+        <label className="block text-sm">Sala<select className="mt-1 w-full rounded-lg border p-2" value={salaId} onChange={e => setSalaId(e.target.value)}><option value="">Sem sala definida</option>{salas.filter(s => s.ativo || s.id === salaId).map(s => <option key={s.id} value={s.id}>{s.nome} ({s.capacidade} vagas)</option>)}</select></label>
+        {!selecionado && <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm">Quantidade de sessões<input type="number" min={1} max={52} required className="mt-1 w-full rounded-lg border p-2" value={quantidade} onChange={e => setQuantidade(Number(e.target.value))} /></label>
+          {quantidade > 1 && <label className="block text-sm">Intervalo<select className="mt-1 w-full rounded-lg border p-2" value={intervaloSemanas} onChange={e => setIntervaloSemanas(Number(e.target.value))}>{[1,2,3,4].map(n => <option key={n} value={n}>A cada {n} semana(s)</option>)}</select></label>}
+        </div>}
+        {quantidade > 1 && !selecionado && <p className="text-xs text-slate-600">Todas as sessões precisam estar livres. Se houver conflito, nenhuma será criada.</p>}
         {!selecionado && disponibilidade && <p role="status" className={disponibilidade.disponivel ? 'text-sm text-green-700' : 'text-sm text-red-700'}>{disponibilidade.disponivel ? disponibilidade.vagasRestantes + ' vaga(s) disponível(is)' : 'Horário indisponível'}</p>}
         {selecionado && <div className="flex flex-wrap gap-2 border-t pt-4 text-sm">
           <button type="button" onClick={() => mudarSituacao('CONFIRMADO')} className="rounded-lg border border-slate-300 px-3 py-2">Confirmar</button>
