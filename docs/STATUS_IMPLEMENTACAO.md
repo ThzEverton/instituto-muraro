@@ -84,3 +84,7 @@ Quatro regras configuraveis (confirmacao de agenda, lembrete, cobranca a vencer,
 ## Integração do frontend original
 
 Interface operacional unificada no layout e componentes originais de fisioterapia. Raiz redireciona para /sistema, demonstração preservada e separada em /demo. Login real e navegação por perfil; painel /api/v1/painel/resumo com indicadores do PostgreSQL; pacientes com tabela, modal e perfil lateral; profissionais/serviços com tabelas e modais originais; agenda em calendário/lista; demais módulos integrados ao layout. Pré-consulta com identidade do formulário original. Origem local do proxy corrigida sem liberar origem externa. Suite 22/22 e teste de navegador scripts/verificar-interface-local.mjs aprovado. Ver docs/FRONTEND_INTEGRADO.md para limitações e homologação pendente.
+
+## Limpeza de código legado
+
+A descrição inicial deste documento é histórica. A API demonstrativa em memória, seus testes históricos, mocks desconectados, componente de template sem consumidor e imagens placeholder foram retirados da árvore ativa. O demo de fisioterapia, as migrações, as rotas operacionais e os testes reais foram preservados. Scripts exploratórios de auditoria foram arquivados fora do projeto.

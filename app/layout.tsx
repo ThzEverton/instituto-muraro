@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Instituto Muraro | Gestão em Fisioterapia',
-  description: 'Demonstração de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
+  description: 'Sistema de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
   generator: 'Instituto Muraro',
   icons: {
     icon: [

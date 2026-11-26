@@ -20,6 +20,6 @@ O servidor novo está em `backend/src/servidor.ts` e usa Prisma/PostgreSQL. Rota
 | GET/POST | `/api/v1/agendamentos` | Administração/recepção |
 | PATCH | `/api/v1/agendamentos/:id` | Administração/recepção |
 
-Sessões são persistidas com hash SHA-256 do token e expiram após oito horas. Senhas são derivadas com scrypt e sal aleatório. A API usa `Authorization: Bearer <token>`, configura CORS por `CORS_ORIGIN` e retorna mensagens de erro sem dados clínicos. O frontend demonstrativo ainda não consome esta API.
+Sessões são persistidas com hash SHA-256 do token e expiram após oito horas. Senhas são derivadas com scrypt e sal aleatório. A API usa `Authorization: Bearer <token>`, configura CORS por `CORS_ORIGIN` e retorna mensagens de erro sem dados clínicos. O frontend operacional consome esta API pelo proxy `/api/sistema`; a demonstração permanece isolada.
 
-Rotas antigas em inglês continuam apenas no arquivo histórico `backend/src/server.ts`, fora dos scripts de inicialização. Não usá-las como contrato novo.
+As rotas antigas em inglês foram retiradas da árvore de trabalho e permanecem no histórico Git. Consulte o Swagger para o contrato vigente.

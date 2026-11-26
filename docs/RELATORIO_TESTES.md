@@ -31,3 +31,11 @@ Não houve teste de navegador nem restauração de backup. O PostgreSQL utilizad
 - Build do backend e build do Next.js passaram com a nova página de agenda.
 
 Não houve teste visual da interface em navegador nem simulação de operações em múltiplos processos.
+
+## Revisão de limpeza da árvore ativa — 26/11/2026
+
+- 12 arquivos obsoletos removidos (API demonstrativa em memória e três testes históricos, mocks, componente de template e placeholders), preservados no histórico Git. Demo de fisioterapia, regras operacionais e migrações mantidos.
+- Dependências diretas sem consumidores removidas: msw, @base-ui/react, class-variance-authority. MSW permanece transitivamente por Vitest; aviso de peer TypeScript >=5.9 persiste, sem falha observada. Não atualizar TypeScript apenas para eliminar o aviso sem revisão própria.
+- Instalação frozen-lockfile, UX Guardrails sem findings, typecheck, build backend, build Next.js e verificação do demo aprovados.
+- PostgreSQL 16 descartável: nove migrações aplicadas, 19/19 testes ativos aprovados (12 de integração, 4 de fundação, 3 de documentação). A redução de 22 para 19 decorre exclusivamente da retirada de testes da API histórica em memória.
+- Sistema, demo, saúde da API e Swagger responderam HTTP 200 após limpeza. Banco local existente preservado; container temporário encerrado. Quatro resíduos compilados antigos removidos. Scripts exploratórios de auditoria arquivados fora da árvore ativa. Não houve exclusão de dados do banco nem deploy de produção.

@@ -1,5 +1,10 @@
 # Backend Instituto Muraro
 
-O comando `dev` inicia `src/servidor.ts`, API Fastify em português com Prisma/PostgreSQL. Consulte [banco de dados](../docs/BANCO_DE_DADOS.md) para configuração local e migração, e [integrações da API](../docs/INTEGRACOES_API.md) para rotas.
+O comando dev inicia src/servidor.ts, API Fastify em português com Prisma/PostgreSQL. Consulte [banco de dados](../docs/BANCO_DE_DADOS.md) para configuração local, migração e criação do administrador; [Swagger](../docs/SWAGGER.md) para documentação da API.
 
-`src/server.ts`, `src/store.ts` e `src/contracts.ts` são remanescentes do protótipo demonstrativo. Seus testes antigos continuam isolados para não apagar evidência histórica, mas essas rotas não são iniciadas pelos scripts `dev` e `start`. Ainda não há integração do frontend nem testes de persistência real.
+- banco:gerar: gera o cliente Prisma.
+- banco:migrar: aplica as migrações versionadas.
+- dev / build / start: execução e compilação da API operacional.
+- test: validação unitária, documentação e integração PostgreSQL quando TESTAR_POSTGRES=1.
+
+A API demonstrativa antiga em memória e seus três testes históricos foram retirados da árvore ativa. O demo de frontend permanece isolado. Não executar integração com dados reais: use banco descartável. O sistema ainda não está homologado para uso clínico.
