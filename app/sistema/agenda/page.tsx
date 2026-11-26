@@ -4,7 +4,7 @@ import {usePerfilSessao} from '@/lib/sessao-interface'
 import { useCallback, useEffect, useMemo, useState, useRef, type FormEvent } from 'react'
 import Link from 'next/link'
 import { CalendarDays, ClipboardList, Plus, LockKeyhole, X, Edit3, Check } from 'lucide-react'
-import { SectionHeader, Table, Badge, stateTone, Empty, PillButton, ErrorNote } from '@/components/physio/ui'
+import { SectionHeader, Table, Badge, stateTone, Empty, PillButton, ErrorNote, Dialog } from '@/components/physio/ui'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -130,7 +130,7 @@ export default function Agenda() {
     setDisponibilidade(null)
     setSelecionado(null)
     setFormulario({
-      pacienteId: pacientes.find(p=>p.ativo)?.id ?? '', profissionalId: filtroProfissional || (profissionais.find(p=>p.ativo)?.id ?? ''),
+      pacienteId: '', profissionalId: filtroProfissional || '',
       servicoId: '', inicioEm: horarioLocal(dados.start),
     })
     setAberto(true); setErro('')
@@ -257,7 +257,7 @@ export default function Agenda() {
   const status:Record<string,string>={AGENDADO:'Agendado',AGUARDANDO_CONFIRMACAO:'Aguardando confirmação',CONFIRMADO:'Confirmado',EM_ATENDIMENTO:'Em atendimento',CONCLUIDO:'Concluído',NAO_COMPARECEU:'Não compareceu',CANCELADO:'Cancelado'}
   const abrirNovo=()=>{
     setSelecionado(null);setSalaId('');setQuantidade(1);setIntervaloSemanas(1);setDisponibilidade(null)
-    setFormulario({pacienteId:pacientes.find(p=>p.ativo)?.id??'',profissionalId:filtroProfissional||profissionais.find(p=>p.ativo)?.id||'',servicoId:'',inicioEm:horarioLocal(new Date())})
+    setFormulario({pacienteId:'',profissionalId:filtroProfissional||'',servicoId:'',inicioEm:horarioLocal(new Date())})
     setErro('');setAberto(true)
   }
   const abrirAtendimento=(a:Agendamento)=>{
@@ -281,61 +281,39 @@ export default function Agenda() {
     <section className="m-card m-blocks-card"><div className="m-card-head"><div><h2>Bloqueios e indisponibilidades</h2><p>Intervalos, feriados, férias e salas da equipe</p></div>{perfil==='ADMINISTRADOR'&&<div className="m-inline-actions"><button className="m-btn secondary" onClick={()=>{setNomeSala('');setCapacidadeSala(1);setErro('');setSalaAberta(true)}}>Cadastrar sala</button><button className="m-btn secondary" onClick={()=>{setErro('');setFormAusencia({profissionalId:filtroProfissional,dataInicio:'',dataFim:'',motivo:''});setAusenciaAberta(true)}}>Feriados e férias</button></div>}</div>
       {bloqueios.length===0&&ausencias.length===0?<Empty title="Sem bloqueios no período" description="Adicione intervalos e ausências para proteger a agenda."/>:<div className="m-block-list">{bloqueios.map(b=><div key={b.id}><span className="m-block-symbol"><LockKeyhole size={17}/></span><div><strong>{b.tipo}</strong><small>{profissionais.find(p=>p.id===b.profissionalId)?.nome} • {new Date(b.inicioEm).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</small></div><PillButton title="Remover bloqueio" variant="danger" onClick={()=>{if(window.confirm('Remover bloqueio?'))void desbloquear(b.id)}}><X size={16}/></PillButton></div>)}{ausencias.map(a=><div key={a.id}><span className="m-block-symbol"><LockKeyhole size={17}/></span><div><strong>{a.motivo}</strong><small>{a.dataInicio} a {a.dataFim} • {a.profissionalId?profissionais.find(p=>p.id===a.profissionalId)?.nome:'Toda a clínica'}</small></div>{perfil==='ADMINISTRADOR'&&<PillButton title="Remover ausência" variant="danger" onClick={()=>{if(window.confirm('Remover ausência?'))void removerAusencia(a.id)}}><X size={16}/></PillButton>}</div>)}</div>}
     </section>
-      {ausenciaAberta && <div className="m-overlay">
-        <form onSubmit={salvarAusencia} className="m-dialog m-integrated-dialog space-y-4 p-6">
-          <h2 className="text-xl font-semibold">Feriados e férias</h2>
-          <label className="block text-sm">Aplicar a<select className="mt-1 w-full rounded-lg border p-2" value={formAusencia.profissionalId} onChange={e => setFormAusencia(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Toda a clínica</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
-          <label className="block text-sm">Primeiro dia<input required type="date" className="mt-1 w-full rounded-lg border p-2" value={formAusencia.dataInicio} onChange={e => setFormAusencia(a => ({ ...a, dataInicio: e.target.value }))} /></label>
-          <label className="block text-sm">Último dia (inclusive)<input required type="date" min={formAusencia.dataInicio} className="mt-1 w-full rounded-lg border p-2" value={formAusencia.dataFim} onChange={e => setFormAusencia(a => ({ ...a, dataFim: e.target.value }))} /></label>
-          <label className="block text-sm">Motivo<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={formAusencia.motivo} onChange={e => setFormAusencia(a => ({ ...a, motivo: e.target.value }))} /></label>
-          <p className="text-xs text-slate-600">Atendimentos existentes precisam ser reagendados antes de bloquear o período.</p>
-          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setAusenciaAberta(false)} className="m-btn secondary">Fechar</button><button disabled={carregando} className="m-btn primary">Salvar</button></div>
-        </form>
-      </div>}
-      {salaAberta && <div className="m-overlay">
-        <form onSubmit={salvarSala} className="m-dialog m-integrated-dialog space-y-4 p-6">
-          <h2 className="text-xl font-semibold">Cadastrar sala</h2>
-          <label className="block text-sm">Nome<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={nomeSala} onChange={e => setNomeSala(e.target.value)} /></label>
-          <label className="block text-sm">Capacidade<input required type="number" min={1} max={100} className="mt-1 w-full rounded-lg border p-2" value={capacidadeSala} onChange={e => setCapacidadeSala(Number(e.target.value))} /></label>
-          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setSalaAberta(false)} className="m-btn secondary">Fechar</button><button disabled={carregando} className="m-btn primary">Salvar</button></div>
-        </form>
-      </div>}
-      {bloqueioAberto && <div className="m-overlay">
-        <form onSubmit={salvarBloqueio} className="m-dialog m-integrated-dialog space-y-4 p-6">
-          <h2 className="text-xl font-semibold">Bloquear horário</h2>
-          <label className="block text-sm">Profissional<select required className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.profissionalId} onChange={(e) => setFormBloqueio(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
-          <label className="block text-sm">Início<input required type="datetime-local" className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.inicioEm} onChange={e => setFormBloqueio(a => ({ ...a, inicioEm: e.target.value }))} /></label>
-          <label className="block text-sm">Fim<input required type="datetime-local" className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.fimEm} onChange={e => setFormBloqueio(a => ({ ...a, fimEm: e.target.value }))} /></label>
-          <label className="block text-sm">Motivo<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.tipo} onChange={e => setFormBloqueio(a => ({ ...a, tipo: e.target.value }))} /></label>
-          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-          <div className="flex justify-end gap-3"><button type="button" onClick={() => setBloqueioAberto(false)} className="m-btn secondary">Fechar</button><button disabled={carregando} className="m-btn primary">Bloquear</button></div>
-        </form>
-      </div>}
-      {aberto && <div className="m-overlay"><form onSubmit={salvar} role="dialog" aria-modal="true" aria-label="Atendimento" className="m-dialog m-integrated-dialog space-y-4 p-6">
-        <h2 className="text-xl font-semibold">{selecionado ? 'Atendimento' : 'Novo atendimento'}</h2>
-        <label className="block text-sm">Paciente<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.pacienteId} onChange={(evento) => setFormulario((atual) => ({ ...atual, pacienteId: evento.target.value }))}><option value="">Selecione</option>{pacientes.filter(p=>p.ativo||p.id===selecionado?.pacienteId).map((paciente) => <option value={paciente.id} key={paciente.id}>{paciente.nomeCompleto}</option>)}</select></label>
-        <label className="block text-sm">Profissional<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.profissionalId} onChange={(evento) => setFormulario((atual) => ({ ...atual, profissionalId: evento.target.value, servicoId: '' }))}><option value="">Selecione</option>{profissionais.filter(p=>p.ativo||p.id===selecionado?.profissionalId).map((profissional) => <option value={profissional.id} key={profissional.id}>{profissional.nome}</option>)}</select></label>
-        <label className="block text-sm">Serviço<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.servicoId} onChange={(evento) => setFormulario((atual) => ({ ...atual, servicoId: evento.target.value }))}><option value="">Selecione</option>{servicosDisponiveis.map((servico) => <option value={servico.id} key={servico.id}>{servico.nome} · {servico.duracaoMinutos} min</option>)}</select></label>
-        <label className="block text-sm">Início<input required type="datetime-local" className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.inicioEm} onChange={(evento) => setFormulario((atual) => ({ ...atual, inicioEm: evento.target.value }))} /></label>
-        {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-        <label className="block text-sm">Sala<select className="mt-1 w-full rounded-lg border p-2" value={salaId} onChange={e => setSalaId(e.target.value)}><option value="">Sem sala definida</option>{salas.filter(s => s.ativo || s.id === salaId).map(s => <option key={s.id} value={s.id}>{s.nome} ({s.capacidade} vagas)</option>)}</select></label>
-        {!selecionado && <div className="grid grid-cols-2 gap-3">
-          <label className="block text-sm">Quantidade de sessões<input type="number" min={1} max={52} required className="mt-1 w-full rounded-lg border p-2" value={quantidade} onChange={e => setQuantidade(Number(e.target.value))} /></label>
-          {quantidade > 1 && <label className="block text-sm">Intervalo<select className="mt-1 w-full rounded-lg border p-2" value={intervaloSemanas} onChange={e => setIntervaloSemanas(Number(e.target.value))}>{[1,2,3,4].map(n => <option key={n} value={n}>A cada {n} semana(s)</option>)}</select></label>}
+      {ausenciaAberta&&<Dialog title={'Feriados e férias'} subtitle="Defina os dados para organizar a disponibilidade da equipe." wide onClose={()=>{if(!carregando)setAusenciaAberta(false)}} footer={<><button className="m-btn secondary" disabled={carregando} onClick={()=>setAusenciaAberta(false)}>Fechar</button><button form="agenda-ausenciaAberta" type="submit" className="m-btn primary" disabled={carregando}>{carregando?'Salvando...':'Salvar ausência'}</button></>}><form id="agenda-ausenciaAberta" onSubmit={salvarAusencia} className="m-form-grid"><label className="m-field"><span className="m-field-label">Aplicar a</span><select className="m-input" value={formAusencia.profissionalId} onChange={e => setFormAusencia(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Toda a clínica</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+          <label className="m-field"><span className="m-field-label">Primeiro dia</span><input required type="date" className="m-input" value={formAusencia.dataInicio} onChange={e => setFormAusencia(a => ({ ...a, dataInicio: e.target.value }))} /></label>
+          <label className="m-field"><span className="m-field-label">Último dia (inclusive)</span><input required type="date" min={formAusencia.dataInicio} className="m-input" value={formAusencia.dataFim} onChange={e => setFormAusencia(a => ({ ...a, dataFim: e.target.value }))} /></label>
+          <label className="m-field"><span className="m-field-label">Motivo</span><input required minLength={2} maxLength={100} className="m-input" value={formAusencia.motivo} onChange={e => setFormAusencia(a => ({ ...a, motivo: e.target.value }))} /></label>
+          <p className="col-span-full text-sm text-slate-600">Atendimentos existentes precisam ser reagendados antes de bloquear o período.</p>
+          {erro && <p role="alert" className="col-span-full text-sm text-red-700">{erro}</p>}</form></Dialog>}
+      {salaAberta&&<Dialog title={'Cadastrar sala'} subtitle="Defina os dados para organizar a disponibilidade da equipe." onClose={()=>{if(!carregando)setSalaAberta(false)}} footer={<><button className="m-btn secondary" disabled={carregando} onClick={()=>setSalaAberta(false)}>Fechar</button><button form="agenda-salaAberta" type="submit" className="m-btn primary" disabled={carregando}>{carregando?'Salvando...':'Salvar sala'}</button></>}><form id="agenda-salaAberta" onSubmit={salvarSala} className="m-form-grid"><label className="m-field"><span className="m-field-label">Nome</span><input required minLength={2} maxLength={100} className="m-input" value={nomeSala} onChange={e => setNomeSala(e.target.value)} /></label>
+          <label className="m-field"><span className="m-field-label">Capacidade</span><input required type="number" min={1} max={100} className="m-input" value={capacidadeSala} onChange={e => setCapacidadeSala(Number(e.target.value))} /></label>
+          {erro && <p role="alert" className="col-span-full text-sm text-red-700">{erro}</p>}</form></Dialog>}
+      {bloqueioAberto&&<Dialog title={'Bloquear horário'} subtitle="Defina os dados para organizar a disponibilidade da equipe." wide onClose={()=>{if(!carregando)setBloqueioAberto(false)}} footer={<><button className="m-btn secondary" disabled={carregando} onClick={()=>setBloqueioAberto(false)}>Fechar</button><button form="agenda-bloqueioAberto" type="submit" className="m-btn primary" disabled={carregando}>{carregando?'Salvando...':'Bloquear horário'}</button></>}><form id="agenda-bloqueioAberto" onSubmit={salvarBloqueio} className="m-form-grid"><label className="m-field"><span className="m-field-label">Profissional</span><select required className="m-input" value={formBloqueio.profissionalId} onChange={(e) => setFormBloqueio(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+          <label className="m-field"><span className="m-field-label">Início</span><input required type="datetime-local" className="m-input" value={formBloqueio.inicioEm} onChange={e => setFormBloqueio(a => ({ ...a, inicioEm: e.target.value }))} /></label>
+          <label className="m-field"><span className="m-field-label">Fim</span><input required type="datetime-local" className="m-input" value={formBloqueio.fimEm} onChange={e => setFormBloqueio(a => ({ ...a, fimEm: e.target.value }))} /></label>
+          <label className="m-field"><span className="m-field-label">Motivo</span><input required minLength={2} maxLength={100} className="m-input" value={formBloqueio.tipo} onChange={e => setFormBloqueio(a => ({ ...a, tipo: e.target.value }))} /></label>
+          {erro && <p role="alert" className="col-span-full text-sm text-red-700">{erro}</p>}</form></Dialog>}
+      {aberto&&<Dialog title={selecionado?'Editar atendimento':'Novo atendimento'} subtitle="Selecione o paciente, serviço e horário de atendimento." wide onClose={()=>{if(!carregando)setAberto(false)}} footer={<><button className="m-btn secondary" disabled={carregando} onClick={()=>setAberto(false)}>Fechar</button><button form="agenda-aberto" type="submit" className="m-btn primary" disabled={carregando || (!selecionado && disponibilidade?.disponivel === false)}>{carregando?'Salvando...':selecionado?'Salvar alterações':'Agendar atendimento'}</button></>}><form id="agenda-aberto" onSubmit={salvar} className="m-form-grid"><label className="m-field span-2"><span className="m-field-label">Paciente</span><select required className="m-input" value={formulario.pacienteId} onChange={(evento) => setFormulario((atual) => ({ ...atual, pacienteId: evento.target.value }))}><option value="">Selecione</option>{pacientes.filter(p=>p.ativo||p.id===selecionado?.pacienteId).map((paciente) => <option value={paciente.id} key={paciente.id}>{paciente.nomeCompleto}</option>)}</select></label>
+        <label className="m-field"><span className="m-field-label">Profissional</span><select required className="m-input" value={formulario.profissionalId} onChange={(evento) => setFormulario((atual) => ({ ...atual, profissionalId: evento.target.value, servicoId: '' }))}><option value="">Selecione</option>{profissionais.filter(p=>p.ativo||p.id===selecionado?.profissionalId).map((profissional) => <option value={profissional.id} key={profissional.id}>{profissional.nome}</option>)}</select></label>
+        <label className="m-field"><span className="m-field-label">Serviço</span><select required className="m-input" value={formulario.servicoId} onChange={(evento) => setFormulario((atual) => ({ ...atual, servicoId: evento.target.value }))}><option value="">Selecione</option>{servicosDisponiveis.map((servico) => <option value={servico.id} key={servico.id}>{servico.nome} · {servico.duracaoMinutos} min</option>)}</select></label>
+        <label className="m-field"><span className="m-field-label">Início</span><input required type="datetime-local" className="m-input" value={formulario.inicioEm} onChange={(evento) => setFormulario((atual) => ({ ...atual, inicioEm: evento.target.value }))} /></label>
+        {erro && <p role="alert" className="col-span-full text-sm text-red-700">{erro}</p>}
+        <label className="m-field"><span className="m-field-label">Sala (opcional)</span><select className="m-input" value={salaId} onChange={e => setSalaId(e.target.value)}><option value="">Sem sala definida</option>{salas.filter(s => s.ativo || s.id === salaId).map(s => <option key={s.id} value={s.id}>{s.nome} ({s.capacidade} vagas)</option>)}</select></label>
+        {!selecionado && <div className="col-span-full m-form-grid m-agenda-recurrence"><div className="col-span-full"><h3>Recorrência</h3><p>Crie uma sessão única ou uma sequência de atendimentos.</p></div>
+          <label className="m-field"><span className="m-field-label">Quantidade de sessões</span><input type="number" min={1} max={52} required className="m-input" value={quantidade} onChange={e => setQuantidade(Number(e.target.value))} /></label>
+          {quantidade > 1 && <label className="m-field"><span className="m-field-label">Intervalo</span><select className="m-input" value={intervaloSemanas} onChange={e => setIntervaloSemanas(Number(e.target.value))}>{[1,2,3,4].map(n => <option key={n} value={n}>A cada {n} semana(s)</option>)}</select></label>}
         </div>}
-        {quantidade > 1 && !selecionado && <p className="text-xs text-slate-600">Todas as sessões precisam estar livres. Se houver conflito, nenhuma será criada.</p>}
+        {quantidade > 1 && !selecionado && <p className="col-span-full text-sm text-slate-600">Todas as sessões precisam estar livres. Se houver conflito, nenhuma será criada.</p>}
         {!selecionado && disponibilidade && <p role="status" className={disponibilidade.disponivel ? 'text-sm text-green-700' : 'text-sm text-red-700'}>{disponibilidade.disponivel ? disponibilidade.vagasRestantes + ' vaga(s) disponível(is)' : 'Horário indisponível'}</p>}
-        {selecionado && <div className="flex flex-wrap gap-2 border-t pt-4 text-sm">
+        {selecionado && <div className="col-span-full flex flex-wrap gap-2 border-t pt-4 text-sm">
             {perfil==='ADMINISTRADOR'&&<Link href={'/sistema/financeiro?agendamento=' + encodeURIComponent(selecionado.id) + '&paciente=' + encodeURIComponent(selecionado.pacienteId)} className="rounded-lg border border-slate-300 px-3 py-2">Plano e sessão</Link>}
             <Link href={'/sistema/formularios?agendamento=' + encodeURIComponent(selecionado.id)} className="rounded-lg border border-slate-300 px-3 py-2">Pré-consulta</Link>
           <button type="button" onClick={() => mudarSituacao('CONFIRMADO')} className="rounded-lg border border-slate-300 px-3 py-2">Confirmar</button>
           <button type="button" onClick={() => mudarSituacao('CONCLUIDO')} className="rounded-lg border border-slate-300 px-3 py-2">Concluir</button>
           <button type="button" onClick={() => mudarSituacao('NAO_COMPARECEU')} className="rounded-lg border border-slate-300 px-3 py-2">Falta</button>
           <button type="button" onClick={() => mudarSituacao('CANCELADO')} className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Cancelar</button>
-        </div>}
-        <div className="flex justify-end gap-3"><button type="button" onClick={() => setAberto(false)} className="m-btn secondary">Fechar</button><button disabled={carregando || (!selecionado && disponibilidade?.disponivel === false)} className="m-btn primary">Salvar</button></div>
-      </form></div>}
+        </div>}</form></Dialog>}
   </>
 }
