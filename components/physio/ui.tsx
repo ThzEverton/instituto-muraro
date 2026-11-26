@@ -1,5 +1,5 @@
 'use client'
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, useRef, useId, type ReactNode } from 'react'
 import { AlertCircle, ArrowDownToLine, Check, ChevronLeft, ChevronRight, CircleHelp, ClipboardList, Search, X } from 'lucide-react'
 import { maskCpf, maskPhone } from '@/lib/physio-model'
 
@@ -22,9 +22,30 @@ export function Empty({title,description,action}:{title:string;description:strin
  return <div className="m-empty"><span className="m-empty-icon"><ClipboardList size={25}/></span><strong>{title}</strong><p>{description}</p>{action}</div>
 }
 export function Dialog({title,subtitle,onClose,children,footer,wide=false}:{title:string;subtitle?:string;onClose:()=>void;children:ReactNode;footer?:ReactNode;wide?:boolean}){
+ const idTitulo=useId(),idDescricao=useId()
+ const dialogo=useRef<HTMLElement>(null)
+ const fechar=useRef(onClose)
+ fechar.current=onClose
+ useEffect(()=>{
+  const anterior=document.activeElement as HTMLElement|null
+  const overflow=document.body.style.overflow
+  document.body.style.overflow='hidden'
+  const caixa=dialogo.current
+  const focaveis=()=>Array.from(caixa?.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex="0"]')??[]).filter(e=>e.getClientRects().length)
+  const timer=window.setTimeout(()=>{(caixa?.querySelector<HTMLElement>('input:not(:disabled),textarea:not(:disabled),select:not(:disabled)')??focaveis()[0])?.focus()},50)
+  const teclado=(e:KeyboardEvent)=>{
+   if(e.key==='Escape'){e.preventDefault();fechar.current();return}
+   if(e.key==='Tab'){const itens=focaveis(),primeiro=itens[0],ultimo=itens[itens.length-1];if(!primeiro)return
+    if(e.shiftKey&&(document.activeElement===primeiro||!caixa?.contains(document.activeElement))){e.preventDefault();ultimo.focus()}
+    else if(!e.shiftKey&&(document.activeElement===ultimo||!caixa?.contains(document.activeElement))){e.preventDefault();primeiro.focus()}
+   }
+  }
+  document.addEventListener('keydown',teclado)
+  return()=>{clearTimeout(timer);document.removeEventListener('keydown',teclado);document.body.style.overflow=overflow;anterior?.focus()}
+ },[])
  return <div className="m-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose()}}>
-  <section className={'m-dialog'+(wide?' wide':'')} role="dialog" aria-modal="true" aria-label={title}>
-   <header className="m-dialog-header"><div><h2>{title}</h2>{subtitle&&<p>{subtitle}</p>}</div><button className="m-icon-btn" onClick={onClose} aria-label="Fechar"><X size={20}/></button></header>
+  <section ref={dialogo} className={'m-dialog'+(wide?' wide':'')} role="dialog" aria-modal="true" aria-labelledby={idTitulo} aria-describedby={subtitle?idDescricao:undefined}>
+   <header className="m-dialog-header"><div><h2 id={idTitulo}>{title}</h2>{subtitle&&<p id={idDescricao}>{subtitle}</p>}</div><button className="m-icon-btn" onClick={onClose} aria-label="Fechar"><X size={20}/></button></header>
    <div className="m-dialog-body">{children}</div>
    {footer&&<footer className="m-dialog-footer">{footer}</footer>}
   </section>
@@ -33,40 +54,41 @@ export function Dialog({title,subtitle,onClose,children,footer,wide=false}:{titl
 export function Inputs({fields,form,onChange}:{fields:FieldDef[];form:Record<string,any>;onChange:(key:string,value:any)=>void}){
  return <div className="m-form-grid">{fields.map(field=>{
   const value=form[field.key]??(field.type==='checkbox'?false:'')
+  if(field.type==='multiselect')return <fieldset className={'m-field'+(field.wide?' span-2':'')} key={field.key}><legend className="m-field-label">{field.label}</legend><div className="m-multiselect">{(field.options||[]).map(o=><label key={o.value}><input type="checkbox" checked={(Array.isArray(value)?value:[]).includes(o.value)} onChange={e=>{const old=Array.isArray(value)?value:[];onChange(field.key,e.target.checked?[...old,o.value]:old.filter((v:string)=>v!==o.value))}}/>{o.label}</label>)}</div>{field.help&&<small>{field.help}</small>}</fieldset>
   return <label className={'m-field'+(field.wide?' span-2':'')} key={field.key}>
    <span className="m-field-label">{field.label}{field.required&&<em> *</em>}</span>
-   {field.type==='textarea' ? <textarea rows={3} value={String(value)} placeholder={field.placeholder} onChange={e=>onChange(field.key,e.target.value)} />
-    :field.type==='select'?<select value={String(value)} onChange={e=>onChange(field.key,e.target.value)}><option value="">Selecione...</option>{(field.options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
+   {field.type==='textarea' ? <textarea rows={3} required={field.required} value={String(value)} placeholder={field.placeholder} onChange={e=>onChange(field.key,e.target.value)} />
+    :field.type==='select'?<select required={field.required} value={String(value)} onChange={e=>onChange(field.key,e.target.value)}><option value="">Selecione...</option>{(field.options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>
     :field.type==='checkbox'?<span className="m-checkline"><input type="checkbox" checked={Boolean(value)} onChange={e=>onChange(field.key,e.target.checked)}/>{field.help||'Sim'}</span>
-    :field.type==='multiselect'?<div className="m-multiselect">{(field.options||[]).map(o=><label key={o.value}><input type="checkbox" checked={(Array.isArray(value)?value:[]).includes(o.value)} onChange={e=>{const old=Array.isArray(value)?value:[];onChange(field.key,e.target.checked?[...old,o.value]:old.filter((v:string)=>v!==o.value))}}/>{o.label}</label>)}</div>
-    :<input type={field.type||'text'} value={String(value)} placeholder={field.placeholder} min={field.min} max={field.max} onChange={e=>onChange(field.key,field.key==='cpf'?maskCpf(e.target.value):field.key.toLowerCase().includes('phone')?maskPhone(e.target.value):e.target.value)} />}
+    :<input type={field.type||'text'} required={field.required} step={field.type==='number'?'any':undefined} value={String(value)} placeholder={field.placeholder} min={field.min} max={field.max} onChange={e=>onChange(field.key,field.key==='cpf'?maskCpf(e.target.value):['telefone','whatsapp','phone'].includes(field.key.toLowerCase())?maskPhone(e.target.value):e.target.value)} />}
    {field.help&&field.type!=='checkbox'&&<small>{field.help}</small>}
   </label>
  })}</div>
 }
-export function Table<T extends {id:string}>({rows,columns,onRowClick,actions,emptyMessage='Nenhum registro encontrado',pageSize=8}:{rows:T[];columns:Column<T>[];onRowClick?:(x:T)=>void;actions?:(x:T)=>ReactNode;emptyMessage?:string;pageSize?:number}){
+export function Table<T extends {id:string}>({rows,columns,onRowClick,actions,emptyMessage='Nenhum registro encontrado',pageSize=8,externa=false}:{rows:T[];columns:Column<T>[];onRowClick?:(x:T)=>void;actions?:(x:T)=>ReactNode;emptyMessage?:string;pageSize?:number;externa?:boolean}){
  const [page,setPage]=useState(1)
  const count=Math.max(1,Math.ceil(rows.length/pageSize))
  const active=Math.min(page,count)
- const subset=rows.slice((active-1)*pageSize,active*pageSize)
+ const subset=externa?rows:rows.slice((active-1)*pageSize,active*pageSize)
+ useEffect(()=>setPage(1),[rows.length])
  return <>{rows.length===0?<Empty title={emptyMessage} description="Ajuste a pesquisa ou cadastre um novo registro."/>:
- <><div className="m-table-scroll"><table className="m-table"><thead><tr>{columns.map((c,i)=><th key={i} style={{width:c.width}}>{c.label}</th>)}{actions&&<th className="m-th-actions">Ações</th>}</tr></thead>
- <tbody>{subset.map(item=><tr key={item.id} className={onRowClick?'is-clickable':''} onClick={()=>onRowClick?.(item)}>
- {columns.map((c,i)=><td key={i}>{c.cell(item)}</td>)}{actions&&<td className="m-actions" onClick={e=>e.stopPropagation()}>{actions(item)}</td>}</tr>)}</tbody></table></div>
- <footer className="m-table-footer"><span>Exibindo {(active-1)*pageSize+1}–{Math.min(active*pageSize,rows.length)} de {rows.length} registros</span><div className="m-page-nav"><button title="Página anterior" disabled={active===1} onClick={()=>setPage(Math.max(1,active-1))}><ChevronLeft size={16}/></button><strong>{active} / {count}</strong><button title="Próxima página" disabled={active===count} onClick={()=>setPage(Math.min(count,active+1))}><ChevronRight size={16}/></button></div></footer></>}</>
+ <><div className="m-table-scroll"><table className="m-table"><thead><tr>{columns.map((c,i)=><th scope="col" key={i} style={{width:c.width}}>{c.label}</th>)}{actions&&<th scope="col" className="m-th-actions">Ações</th>}</tr></thead>
+ <tbody>{subset.map(item=><tr key={item.id} className={onRowClick?'is-clickable':''} tabIndex={onRowClick?0:undefined} onKeyDown={e=>{if(onRowClick&&e.target===e.currentTarget&&(e.key==='Enter'||e.key===' ')){e.preventDefault();onRowClick(item)}}} onClick={()=>onRowClick?.(item)}>
+ {columns.map((c,i)=><td key={i} data-label={c.label}>{c.cell(item)}</td>)}{actions&&<td data-label="Ações" className="m-actions" onClick={e=>e.stopPropagation()}>{actions(item)}</td>}</tr>)}</tbody></table></div>
+ {!externa&&<footer className="m-table-footer"><span>Exibindo {(active-1)*pageSize+1}–{Math.min(active*pageSize,rows.length)} de {rows.length} registros</span><div className="m-page-nav"><button title="Página anterior" disabled={active===1} onClick={()=>setPage(Math.max(1,active-1))}><ChevronLeft size={16}/></button><strong>{active} / {count}</strong><button title="Próxima página" disabled={active===count} onClick={()=>setPage(Math.min(count,active+1))}><ChevronRight size={16}/></button></div></footer>}</>}</>
 }
 export function SectionHeader({eyebrow,title,description,actions}:{eyebrow?:string;title:string;description?:string;actions?:ReactNode}){
  return <header className="m-section-head"><div>{eyebrow&&<span className="m-eyebrow">{eyebrow}</span>}<h1>{title}</h1>{description&&<p>{description}</p>}</div>{actions&&<div className="m-section-actions">{actions}</div>}</header>
 }
 export function SearchFilter({search,setSearch,filter,setFilter,options,placeholder='Pesquisar por nome ou termo...'}:{search:string;setSearch:(s:string)=>void;filter?:string;setFilter?:(s:string)=>void;options?:{label:string;value:string}[];placeholder?:string}){
- return <div className="m-filterbar"><div className="m-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={placeholder} aria-label="Pesquisar"/></div>{setFilter&&<select value={filter||''} onChange={e=>setFilter(e.target.value)} aria-label="Filtrar">{(options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>}</div>
+ return <div className="m-filterbar"><div className="m-search"><Search size={17}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={placeholder} aria-label="Pesquisar" title={placeholder}/></div>{setFilter&&<select value={filter||''} onChange={e=>setFilter(e.target.value)} aria-label="Filtrar">{(options||[]).map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select>}</div>
 }
 export function Metric({label,value,caption,icon,accent='blue'}:{label:string;value:string|number;caption:string;icon:ReactNode;accent?:'blue'|'teal'|'amber'|'navy'}){
  return <article className="m-metric"><div className="m-metric-label"><span>{label}</span><span className={'m-metric-icon '+accent}>{icon}</span></div><strong>{value}</strong><p>{caption}</p></article>
 }
-export function Progress({done,total}:{done:number;total:number}){const pct=total>0?Math.round(Math.min(100,Math.max(0,done/total*100))):0;return <div className="m-progress"><div style={{width:pct+'%'}}/></div>}
-export function ErrorNote({message}:{message:string}){return <div className="m-form-error"><AlertCircle size={16}/>{message}</div>}
+export function Progress({done,total}:{done:number;total:number}){const pct=total>0?Math.round(Math.min(100,Math.max(0,done/total*100))):0;return <div className="m-progress" role="progressbar" aria-label="Sessões utilizadas" aria-valuemin={0} aria-valuemax={Math.max(1,total)} aria-valuenow={Math.min(Math.max(done,0),Math.max(1,total))}><div style={{width:pct+'%'}}/></div>}
+export function ErrorNote({message}:{message:string}){return <div className="m-form-error" role="alert"><AlertCircle size={16}/>{message}</div>}
 export function Hint({children}:{children:ReactNode}){return <p className="m-hint"><CircleHelp size={15}/>{children}</p>}
-export function PillButton({children,onClick,title,variant='plain',disabled}:{children:ReactNode;onClick:()=>void;title?:string;variant?:'plain'|'danger'|'success';disabled?:boolean}){return <button type="button" className={'m-pill-action '+variant} disabled={disabled} title={title} onClick={onClick}>{children}</button>}
+export function PillButton({children,onClick,title,variant='plain',disabled}:{children:ReactNode;onClick:()=>void;title?:string;variant?:'plain'|'danger'|'success';disabled?:boolean}){return <button type="button" className={'m-pill-action '+variant} disabled={disabled} title={title} aria-label={title} onClick={onClick}>{children}</button>}
 export function ExportButton({onClick}:{onClick:()=>void}){return <button className="m-btn secondary" onClick={onClick}><ArrowDownToLine size={16}/> Exportar CSV</button>}
 export function SaveButton({onClick,disabled=false}:{onClick:()=>void;disabled?:boolean}){return <button className="m-btn primary" onClick={onClick} disabled={disabled}><Check size={17}/> Salvar alterações</button>}

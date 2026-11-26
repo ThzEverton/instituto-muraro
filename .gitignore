@@ -18,3 +18,8 @@ node_modules
 .next/
 *.tsbuildinfo
 .DS_Store
+# Saidas locais de testes e auditorias
+coverage/
+playwright-report/
+test-results/
+*.log

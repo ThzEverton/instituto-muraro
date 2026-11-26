@@ -1,10 +1,9 @@
-import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Instituto Muraro | Gestão em Fisioterapia',
-  description: 'Demonstração de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
+  description: 'Sistema de gestão em fisioterapia do Instituto Muraro: pacientes, agenda, avaliações, planos terapêuticos e financeiro.',
   generator: 'Instituto Muraro',
   icons: {
     icon: [
@@ -41,7 +40,6 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="antialiased">
         {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
   )

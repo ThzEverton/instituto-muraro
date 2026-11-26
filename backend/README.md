@@ -1,15 +1,14 @@
-# Instituto Muraro Backend
+# Backend Instituto Muraro
 
-API REST v1 em Fastify + TypeScript, com contratos Zod, OpenAPI em `/docs` e adapter em memória para desenvolvimento/testes. O schema Prisma/PostgreSQL está em `prisma/schema.prisma`; nenhum dado real ou credencial é incluído.
+O comando dev inicia src/servidor.ts, API Fastify em português com Prisma/PostgreSQL. Consulte [banco de dados](../docs/BANCO_DE_DADOS.md) para configuração local, migração e criação do administrador; [Swagger](../docs/SWAGGER.md) para documentação da API.
 
-## Executar separado
+- banco:gerar: gera o cliente Prisma.
+- banco:migrar: aplica as migrações versionadas.
+- dev / build / start: execução e compilação da API operacional.
+- test: validação unitária, documentação e integração PostgreSQL quando TESTAR_POSTGRES=1.
 
-Na raiz: `pnpm install`; backend: `pnpm --dir backend dev`; documentação: `http://localhost:3333/docs`.
+A API demonstrativa antiga em memória e seus três testes históricos foram retirados da árvore ativa. O demo de frontend permanece isolado. Não executar integração com dados reais: use banco descartável. O sistema ainda não está homologado para uso clínico.
 
-## Validar
+## Arquitetura
 
-`pnpm --dir backend build` e `pnpm --dir backend test`.
-
-## Limitações desta rodada
-
-O adapter padrão é in-memory para permitir execução sem PostgreSQL. Para persistência, configure `DATABASE_URL`, gere o Prisma Client e aplique migrações fora deste checkout. Exclusões clínicas são deliberadamente bloqueadas: prontuários finalizados recebem addenda auditável.
+MVC horizontal em português: rotas, controladores, servicos, repositorios, middlewares, validacoes, configuracoes, tipos e utilitarios. Veja [Arquitetura](../docs/ARCHITECTURE.md). app.ts compõe a aplicação; servidor.ts inicia o listener. O Model é o schema Prisma.
