@@ -1,6 +1,7 @@
 'use client'
+import {usePerfilSessao} from '@/lib/sessao-interface'
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef, type FormEvent } from 'react'
 import Link from 'next/link'
 import { CalendarDays, ClipboardList, Plus, LockKeyhole, X, Edit3, Check } from 'lucide-react'
 import { SectionHeader, Table, Badge, stateTone, Empty, PillButton, ErrorNote } from '@/components/physio/ui'
@@ -37,7 +38,15 @@ function horarioLocal(data: Date) {
 }
 
 export default function Agenda() {
-  const [perfil,setPerfil]=useState('')
+  const calendario=useRef<FullCalendar>(null)
+  const [compacto,setCompacto]=useState(false)
+  useEffect(()=>{
+   const media=window.matchMedia('(max-width: 790px)')
+   const atualizar=()=>{setCompacto(media.matches);if(media.matches&&calendario.current?.getApi().view.type==='timeGridWeek')calendario.current.getApi().changeView('timeGridDay')}
+   atualizar();media.addEventListener('change',atualizar);return()=>media.removeEventListener('change',atualizar)
+  },[])
+  const perfil=usePerfilSessao()
+  useEffect(()=>{const timer=setTimeout(()=>calendario.current?.getApi().updateSize(),250);return()=>clearTimeout(timer)},[compacto])
   const [visualizacao,setVisualizacao]=useState<'calendar'|'list'>('calendar')
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
@@ -86,7 +95,7 @@ export default function Agenda() {
     setAusencias((await api<{ dados: Ausencia[] }>('agenda/ausencias?' + parametros)).dados)
   }, [filtroProfissional])
   useEffect(() => {
-    api<{dados:{perfil:string}}>('autenticacao/sessao').then(r=>setPerfil(r.dados.perfil)).catch(e=>setErro(e.message))
+
     carregarCadastros().catch(falha=>setErro(falha.message))
     const q=new URLSearchParams(window.location.search)
     if(q.get('novo')==='1'){
@@ -114,7 +123,7 @@ export default function Agenda() {
   }))], [agendamentos, bloqueios, ausencias, pacientes, profissionais, servicos])
 
   function datasAlteradas(dados: DatesSetArg) {
-    setIntervalo({ inicio: dados.start.toISOString(), fim: dados.end.toISOString() })
+    setIntervalo(atual=>{const inicio=dados.start.toISOString(),fim=dados.end.toISOString();return atual?.inicio===inicio&&atual.fim===fim?atual:{inicio,fim}})
   }
   function selecionar(dados: DateSelectArg) {
     setSalaId(''); setQuantidade(1); setIntervaloSemanas(1)
@@ -258,9 +267,9 @@ export default function Agenda() {
     <SectionHeader eyebrow="GESTÃO DE HORÁRIOS" title="Agenda de atendimentos" description="Visualize sessões, bloqueios, horários e disponibilidade da equipe." actions={<><button className="m-btn secondary" onClick={()=>{setErro('');setFormBloqueio({profissionalId:filtroProfissional||profissionais.find(p=>p.ativo)?.id||'',inicioEm:'',fimEm:'',tipo:''});setBloqueioAberto(true)}}><LockKeyhole size={16}/> Bloquear horário</button><button className="m-btn primary" onClick={abrirNovo}><Plus size={17}/> Novo agendamento</button></>}/>
     <section className="m-card m-agenda-card">
       <div className="m-agenda-toolbar"><div className="m-agenda-filters"><label>Fisioterapeuta <select value={filtroProfissional} onChange={e=>setFiltroProfissional(e.target.value)}><option value="">Todos os profissionais</option>{profissionais.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}</select></label></div><div className="m-view-switch"><button className={visualizacao==='calendar'?'active':''} onClick={()=>setVisualizacao('calendar')}><CalendarDays size={16}/> Calendário</button><button className={visualizacao==='list'?'active':''} onClick={()=>setVisualizacao('list')}><ClipboardList size={16}/> Lista</button></div></div>
-      <div className="m-agenda-legend">{profissionais.filter(p=>p.ativo&&(!filtroProfissional||p.id===filtroProfissional)).map(p=><span key={p.id}><i style={{background:p.corAgenda??'#2b668f'}}/>{p.nome}</span>)}<span><i style={{background:'#64748b'}}/>Bloqueios</span><span><i style={{background:'#9f1239'}}/>Ausências</span></div>
+      <div className="m-agenda-legend"><span className="m-legend-title">Cores da agenda</span>{profissionais.filter(p=>p.ativo&&(filtroProfissional?p.id===filtroProfissional:agendamentos.some(a=>a.profissionalId===p.id))).slice(0,8).map(p=><span key={p.id}><i style={{background:p.corAgenda??'#2b668f'}}/>{p.nome}</span>)}<span><i style={{background:'#64748b'}}/>Bloqueios</span><span><i style={{background:'#9f1239'}}/>Ausências</span></div>
       {erro&&!aberto&&!bloqueioAberto&&!salaAberta&&!ausenciaAberta&&<ErrorNote message={erro}/>}
-      <div className="m-cal-wrap" style={visualizacao==='list'?{display:'none'}:undefined}><FullCalendar plugins={[dayGridPlugin,timeGridPlugin,interactionPlugin]} initialView="timeGridWeek" locale="pt-br" headerToolbar={{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'}} buttonText={{today:'Hoje',month:'Mês',week:'Semana',day:'Dia'}} allDaySlot={true} slotMinTime="07:00:00" slotMaxTime="21:00:00" slotDuration="00:30:00" nowIndicator selectable editable selectMirror events={eventos} datesSet={datasAlteradas} select={selecionar} eventClick={clicarEvento} eventDrop={mover} height="auto" dayMaxEvents={3}/></div>
+      <div className="m-cal-wrap" style={visualizacao==='list'?{display:'none'}:undefined}><FullCalendar ref={calendario} plugins={[dayGridPlugin,timeGridPlugin,interactionPlugin]} initialView="timeGridWeek" locale="pt-br" allDayText="Dia inteiro" headerToolbar={{left:'prev,next today',center:'title',right:compacto?'dayGridMonth,timeGridDay':'dayGridMonth,timeGridWeek,timeGridDay'}} buttonText={{today:'Hoje',month:'Mês',week:'Semana',day:'Dia'}} allDaySlot={true} slotMinTime="07:00:00" slotMaxTime="21:00:00" slotDuration="00:30:00" nowIndicator selectable editable={!compacto} selectMirror events={eventos} datesSet={datasAlteradas} select={selecionar} eventClick={clicarEvento} eventDrop={mover} height={compacto?650:760} scrollTime="08:00:00" dayMaxEvents={3}/></div>
       {visualizacao==='list'&&<Table<Agendamento> rows={agendamentos.filter(a=>a.situacao!=='CANCELADO')} columns={[
         {label:'Data / hora',cell:a=>new Date(a.inicioEm).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})},
         {label:'Paciente',cell:a=>pacientes.find(p=>p.id===a.pacienteId)?.nomeCompleto??'Paciente'},
@@ -304,7 +313,7 @@ export default function Agenda() {
           <div className="flex justify-end gap-3"><button type="button" onClick={() => setBloqueioAberto(false)} className="m-btn secondary">Fechar</button><button disabled={carregando} className="m-btn primary">Bloquear</button></div>
         </form>
       </div>}
-      {aberto && <div className="m-overlay"><form onSubmit={salvar} className="m-dialog m-integrated-dialog space-y-4 p-6">
+      {aberto && <div className="m-overlay"><form onSubmit={salvar} role="dialog" aria-modal="true" aria-label="Atendimento" className="m-dialog m-integrated-dialog space-y-4 p-6">
         <h2 className="text-xl font-semibold">{selecionado ? 'Atendimento' : 'Novo atendimento'}</h2>
         <label className="block text-sm">Paciente<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.pacienteId} onChange={(evento) => setFormulario((atual) => ({ ...atual, pacienteId: evento.target.value }))}><option value="">Selecione</option>{pacientes.filter(p=>p.ativo||p.id===selecionado?.pacienteId).map((paciente) => <option value={paciente.id} key={paciente.id}>{paciente.nomeCompleto}</option>)}</select></label>
         <label className="block text-sm">Profissional<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.profissionalId} onChange={(evento) => setFormulario((atual) => ({ ...atual, profissionalId: evento.target.value, servicoId: '' }))}><option value="">Selecione</option>{profissionais.filter(p=>p.ativo||p.id===selecionado?.profissionalId).map((profissional) => <option value={profissional.id} key={profissional.id}>{profissional.nome}</option>)}</select></label>

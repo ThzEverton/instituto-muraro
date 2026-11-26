@@ -3,3 +3,8 @@
 
 .patient-operacional{align-items:start;grid-template-columns:minmax(0,1fr) minmax(340px,470px);gap:55px;padding-top:50px}.patient-operacional-copy{padding-top:20px}.patient-operacional-card{background:#fff;border:1px solid #dbe7f2;border-radius:20px;padding:28px;box-shadow:0 12px 35px #1935570c;min-width:0}.patient-operacional .patient-question{font-size:13px}.patient-operacional .patient-intro p{font-size:13px}.patient-operacional .patient-input{width:100%;border:1px solid #dbe4ee;border-radius:10px;background:white;padding:12px;color:#42566c;font-size:16px;min-height:44px}.patient-operacional .patient-submit{min-height:46px;font-size:14px}.patient-operacional button:disabled{opacity:.5}
 @media(max-width:800px){.patient-operacional{display:block;padding:22px 16px 40px}.patient-operacional .patient-copy{margin-bottom:20px}.patient-operacional .patient-copy h1{font-size:24px;line-height:1.18}.patient-operacional .patient-copy .patient-note{display:none}.patient-operacional-card{padding:20px;border-radius:14px}.patient-operacional .patient-question{margin-top:18px}}
+
+.patient-operacional-card [role=alert]{border:1px solid #f2cbd0;border-radius:12px;background:#fff4f4;padding:14px;line-height:1.5}
+.patient-operacional .patient-input:focus-visible,.patient-operacional .patient-submit:focus-visible{outline:2px solid #377ba9;outline-offset:3px}
+.patient-operacional .patient-question{font-size:14px;line-height:1.5}
+.patient-operacional .patient-submit{min-height:48px}

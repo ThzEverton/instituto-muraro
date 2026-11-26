@@ -199,3 +199,71 @@ html,body{margin:0!important;background:var(--m-bg)!important;color:var(--m-text
 .m-quick-grid>a{border:1px solid var(--m-border);border-radius:12px;background:#fff;padding:16px;min-height:105px;text-decoration:none;color:var(--m-text);display:flex;flex-direction:column;align-items:flex-start;gap:7px}.m-quick-grid>a:hover{border-color:#91b3cf;background:#f4f8fc}.m-quick-grid>a>span{color:var(--m-blue);background:#e9f1f9;border-radius:10px;padding:9px}.m-quick-grid>a>small{color:var(--m-muted)}
 .m-feature-card>a{align-self:flex-start;margin-top:12px;color:var(--m-navy);position:relative;z-index:1}.m-modulo .m-card{margin-bottom:16px}.m-modulo label{color:var(--m-text)}
 @media(max-width:790px){.m-login{grid-template-columns:1fr}.m-login-brand{padding:34px;gap:13px}.m-login-brand h1{font-size:29px}.m-login-area{padding:20px}.m-login-form{padding:23px!important}}
+
+/* UX operacional: legibilidade, alvos de toque, feedback e responsividade. */
+.m-app :focus-visible{outline:2px solid #377ba9;outline-offset:3px}
+.m-app .m-nav-link{font-size:13px;min-height:43px}
+.m-app .m-btn{font-size:13px;min-height:42px;line-height:1.3;white-space:normal}
+.m-app .m-btn:disabled,.m-app button:disabled{cursor:not-allowed;opacity:.55}
+.m-app .m-section-head p,.m-app .m-card-head p,.m-app .m-module-intro p{font-size:13px;color:#5e7289}
+.m-app .m-metric-label,.m-app .m-metric p,.m-app .m-empty p{font-size:12px;color:#5c7087}
+.m-app .m-metric>strong{font-variant-numeric:tabular-nums}
+.m-app .m-badge{font-size:12px;line-height:1.2}
+.m-app .m-badge-green{color:#22664f}.m-app .m-badge-red{color:#963f48}.m-app .m-badge-amber{color:#80541b}
+.m-app .m-field-label,.m-app .m-table thead th,.m-app .m-table-footer{font-size:12px;color:#53677e}
+.m-app .m-field input:not([type=checkbox]),.m-app .m-field select,.m-app .m-field textarea,.m-app .m-input,.m-app .m-search input,.m-app .m-filterbar select{font-size:14px;min-height:44px}
+.m-app .m-field small,.m-app .m-name-cell small,.m-app .m-two-line small,.m-app .m-profile-grid span,.m-app .m-dialog-header p{font-size:12px;color:#65788d}
+.m-app .m-table tbody td,.m-app .m-table strong,.m-app .m-profile-grid strong{font-size:13px}
+.m-app .m-name-cell strong{white-space:normal;overflow-wrap:anywhere}
+.m-app .m-pill-action,.m-app .m-icon-btn{width:36px;height:36px}
+.m-app .m-page-nav button{min-width:36px;min-height:36px;width:auto;padding:0 10px}
+.m-app .m-page-nav-text button{font-size:12px;white-space:nowrap}
+.m-app .m-form-error{font-size:13px;line-height:1.5}
+.m-app .m-form-error svg{flex-shrink:0}
+.m-password{position:relative;display:block}.m-password input{padding-right:48px!important}.m-password .m-icon-btn{position:absolute;right:4px;top:4px;min-height:36px}
+.m-login-help{font-size:12px!important;line-height:1.5}.m-today-empty{min-height:300px!important}.m-today-empty .m-empty{padding:35px 16px}
+.m-app .m-modulo .border,.m-app .m-modulo .border-b,.m-app .m-modulo .divide-y>*{border-color:#dce5ed}
+.m-app .m-modulo .m-card{overflow-wrap:anywhere}
+.m-app .m-modulo input:not([type=checkbox]),.m-app .m-modulo select,.m-app .m-modulo textarea{min-height:44px;font-size:14px;min-width:0;max-width:100%;border-color:#dce5ed}
+.m-app .m-modulo input[type=checkbox]{width:20px;height:20px;accent-color:#2c628d;flex-shrink:0}
+.m-app .m-modulo h2{font-size:17px;margin-bottom:8px}
+.m-app .m-modulo nav{align-items:center}
+.m-legend-title{font-weight:700;color:#53677e}.m-agenda-legend{font-size:12px;color:#53677e}
+.m-cal-wrap .fc .fc-toolbar-title{font-size:17px}.m-cal-wrap .fc .fc-button{font-size:12px;min-height:38px}
+.m-app .m-integrated-dialog{max-height:calc(100dvh - 24px);overscroll-behavior:contain}
+@media(max-width:790px){
+ .m-app .m-btn,.m-app .m-pill-action,.m-app .m-icon-btn,.m-app .m-mobile-menu{min-height:44px;min-width:44px}
+ .m-app .m-field input:not([type=checkbox]),.m-app .m-field select,.m-app .m-field textarea,.m-app .m-modulo input:not([type=checkbox]),.m-app .m-modulo select,.m-app .m-modulo textarea,.m-app .m-filterbar select,.m-app .m-search input{font-size:16px}
+ .m-app .m-main-inner{padding:22px 16px 38px}.m-app .m-card{padding:16px}
+ .m-app .m-table-scroll{overflow:visible}.m-app .m-table{min-width:0;display:block;width:100%}
+ .m-app .m-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .m-app .m-table tbody{display:grid;gap:12px}
+ .m-app .m-table tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px;border:1px solid #dce5ed;border-radius:12px;padding:13px;background:#fff}
+ .m-app .m-table tbody td{display:flex;flex-direction:column;align-items:flex-start;gap:5px;border:0;padding:0;min-width:0;overflow-wrap:anywhere;white-space:normal}
+ .m-app .m-table tbody td::before{content:attr(data-label);font-size:11px;font-weight:650;color:#61758a}
+ .m-app .m-table tbody td:first-child,.m-app .m-table tbody td.m-actions{grid-column:1/-1}
+ .m-app .m-table tbody td:first-child::before,.m-app .m-table tbody td.m-actions::before{display:none}
+ .m-app .m-table tbody td.m-actions{flex-direction:row;justify-content:flex-end;gap:7px;border-top:1px solid #edf1f5;padding-top:7px}
+ .m-app .m-table tbody td .m-name-cell{min-width:0;width:100%}.m-app .m-name-cell small{white-space:normal;max-width:100%}
+ .m-app .m-pill-action{background:#f4f7fa;border-color:#e1e9ef}
+ .m-app .m-table-footer{flex-wrap:wrap}.m-app .m-page-nav button{min-height:44px;min-width:44px}
+ .m-app .m-cal-wrap .fc{min-width:0}.m-app .m-cal-wrap .fc-toolbar{display:flex;flex-direction:column;align-items:stretch;gap:8px}.m-app .m-cal-wrap .fc-toolbar-chunk{display:flex;justify-content:center}.m-app .m-cal-wrap .fc-button{min-height:42px}
+ .m-app .m-agenda-legend{gap:9px;padding:10px 0}.m-app .m-agenda-legend span{overflow-wrap:anywhere;min-width:0}.m-app .m-agenda-legend span i{flex-shrink:0}
+ .m-app .m-metric-label{font-size:12px}.m-app .m-metric{padding:13px;min-height:135px}.m-app .m-metric>strong{font-size:21px}
+ .m-app .m-dialog-footer{padding-bottom:max(15px,env(safe-area-inset-bottom))}.m-app .m-dialog{max-height:calc(100dvh - 22px)}
+ .m-app .m-modulo .m-card{min-width:0}.m-app .m-modulo .m-card form{min-width:0}
+}
+
+.m-fin-resumo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px;margin:10px 0 18px}
+.m-fin-resumo>div{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:15px 0;border-bottom:1px solid #dce5ed}
+.m-fin-resumo dt{font-size:13px;color:#53677e}.m-fin-resumo dd{font-size:15px;font-weight:720;white-space:nowrap;color:#203c59;font-variant-numeric:tabular-nums}
+.m-fin-form{background:#f8fafc;margin-top:12px;margin-bottom:16px;align-items:end}
+.m-fin-tabs{border-bottom:1px solid #dce5ed;padding-bottom:12px}.m-subtabs{width:fit-content;max-width:100%;flex-wrap:wrap;margin-bottom:14px}
+.m-app .m-subtabs button{font-size:13px;min-height:42px;white-space:normal}
+.m-app .m-clinical-notice strong{font-size:14px}.m-app .m-clinical-notice p{font-size:13px;color:#4f6b85}
+.m-app .m-clinical-patients button{min-height:44px;overflow-wrap:anywhere}
+.m-app .m-modulo [role=alert]{border:1px solid #f1ccce;background:#fff5f5;padding:12px;border-radius:9px;line-height:1.5}
+.m-app .m-modulo [role=status]{line-height:1.5}
+@media(max-width:790px){.m-fin-resumo{grid-template-columns:1fr}.m-subtabs{width:100%}.m-subtabs button{flex:1}.m-fin-tabs{gap:6px}.m-fin-tabs button{flex:1 1 28%}.m-fin-metrics .m-metric>strong{font-size:18px;overflow-wrap:anywhere}.m-app .m-modulo .m-filterbar input{width:100%;max-width:100%}}
+
+.m-page-limit{display:flex;align-items:center;gap:8px}.m-page-limit select{min-height:36px;border:1px solid #dce5ed;border-radius:8px;padding:4px 9px;background:white;color:#28425f;font-size:13px}.m-app .m-modulo .m-fin-tabs button{font-size:13px}.m-app .m-breadcrumb,.m-app .m-online{font-size:12px}

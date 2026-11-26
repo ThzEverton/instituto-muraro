@@ -1,8 +1,9 @@
 'use client'
+import {usePerfilSessao} from '@/lib/sessao-interface'
 
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import {SectionHeader} from '@/components/physio/ui'
+import {SectionHeader,Empty,Badge} from '@/components/physio/ui'
 
 type Paciente = { id: string; nomeCompleto: string; ativo: boolean }
 type Profissional = { id: string; nome: string; usuarioId: string | null }
@@ -24,9 +25,8 @@ async function api<T>(rota: string, metodo = 'GET', corpo?: object): Promise<T> 
 const mensagem = (e: unknown) => e instanceof Error ? e.message : 'Falha na operação'
 
 export default function Clinica() {
-  const [perfil, setPerfil] = useState('')
+  const perfil=usePerfilSessao()
   const [erro, setErro] = useState('')
-  useEffect(() => { api<{ dados: { perfil: string } }>('autenticacao/sessao').then(r => setPerfil(r.dados.perfil)).catch(e => {setPerfil('SEM_SESSAO'); setErro(mensagem(e))}) }, [])
   async function sair() {
     try { await api('autenticacao/sair', 'POST', {}); window.location.replace('/sistema') }
     catch (e) { setErro(mensagem(e)) }
@@ -38,7 +38,7 @@ export default function Clinica() {
       {perfil === 'ADMINISTRADOR' && <Gestao />}
       {perfil === 'FISIOTERAPEUTA' && <Prontuarios />}
       {perfil === 'RECEPCAO' && <p>O conteúdo clínico não está disponível para a recepção.</p>}
-      {perfil === 'SEM_SESSAO' && <Link href="/sistema" className={botao}>Entrar no sistema</Link>}
+
   </div>
 }
 
@@ -81,9 +81,10 @@ function Gestao() {
   }
   const profissional = profissionais.find(p => p.id === profissionalId)
   return <section className="space-y-6 m-card">
-    <p className="text-sm text-slate-600">Gerencie contas e autorizações. O administrador não visualiza os registros clínicos.</p>
+    <div className="m-clinical-notice"><div><strong>Controle de acesso clínico</strong><p>1. Escolha um profissional. 2. Crie ou associe sua conta. 3. Autorize apenas os pacientes que ele atende. Administradores não acessam o conteúdo dos prontuários.</p></div></div>
     {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
     <label className="block text-sm">Profissional<select className={campo} value={profissionalId} disabled={ocupado} onChange={e => setProfissionalId(e.target.value)}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+    {!profissional&&<Empty title="Selecione um fisioterapeuta" description="Escolha um profissional para administrar sua conta e os vínculos com pacientes."/>}
     {profissional && <>
       <div className="space-y-3 rounded-xl border p-4">
         <h2 className="font-semibold">Conta de acesso</h2>
@@ -154,15 +155,15 @@ function Prontuarios() {
     finally {setOcupado(false)}
   }
   return <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-    <aside className="space-y-3 rounded-2xl bg-white p-4 shadow-sm"><h2 className="font-semibold">Meus pacientes</h2>
+    <aside className="m-card space-y-3 m-clinical-patients"><h2 className="font-semibold">Meus pacientes</h2>
       <form className="flex gap-2" onSubmit={e => {e.preventDefault(); buscar().catch(e => setErro(mensagem(e)))}}><input className="min-w-0 flex-1 rounded-lg border p-2" placeholder="Nome" value={busca} onChange={e => setBusca(e.target.value)}/><button className={secundario}>Buscar</button></form>
       {pacientes.map(p => <button key={p.id} disabled={ocupado} className={'block w-full rounded-lg border p-3 text-left text-sm ' + (p.id === id ? 'border-[#3c897d] bg-teal-50' : '')} onClick={() => abrir(p.id)}>{p.nomeCompleto}{!p.ativo && ' (inativo)'}</button>)}
-      {!pacientes.length && <p className="text-sm text-slate-500">Nenhum paciente autorizado.</p>}
-      <div className="flex justify-between text-sm"><button disabled={pagina<=1} onClick={() => buscar(pagina-1).catch(e => setErro(mensagem(e)))}>Anterior</button><button disabled={pagina*50>=total} onClick={() => buscar(pagina+1).catch(e => setErro(mensagem(e)))}>Próxima</button></div>
+      {!pacientes.length && <Empty title="Nenhum paciente encontrado" description="Verifique a pesquisa ou solicite ao administrador o vínculo clínico."/>}
+      <div className="flex justify-between text-sm"><button className={secundario} disabled={pagina<=1} onClick={() => buscar(pagina-1).catch(e => setErro(mensagem(e)))}>Anterior</button><button className={secundario} disabled={pagina*50>=total} onClick={() => buscar(pagina+1).catch(e => setErro(mensagem(e)))}>Próxima</button></div>
     </aside>
     <section className="space-y-5 m-card">
       {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
-      {!prontuario && <p className="text-sm text-slate-500">Selecione um paciente autorizado para abrir o prontuário.</p>}
+      {!prontuario && <Empty title="Selecione um paciente" description="Escolha um paciente autorizado para consultar ou registrar o acompanhamento clínico."/>}
       {prontuario && <>
         <h2 className="text-xl font-semibold">{prontuario.paciente.nomeCompleto}</h2>
         {prontuario.paciente.ativo && <form onSubmit={(e:FormEvent) => {e.preventDefault(); void salvar(false)}} className="space-y-3 rounded-xl border p-4">
@@ -180,7 +181,7 @@ function Prontuarios() {
         {!prontuario.formularios.length && <p className="text-sm text-slate-500">Nenhum formulário respondido.</p>}
         <h3 className="font-semibold">Histórico clínico</h3>
         {prontuario.entradas.map(item => <article key={item.id} className="rounded-xl border p-4">
-          <div className="flex flex-wrap justify-between gap-2"><strong>{tipos.find(t => t[0] === item.tipo)?.[1]}</strong><span className="text-xs text-slate-500">{item.situacao === 'FINALIZADO' ? 'Finalizado' : 'Rascunho'}</span></div>
+          <div className="flex flex-wrap justify-between gap-2"><strong>{tipos.find(t => t[0] === item.tipo)?.[1]}</strong><Badge tone={item.situacao==="FINALIZADO"?"green":"amber"}>{item.situacao==="FINALIZADO"?"Finalizado":"Rascunho"}</Badge></div>
           <p className="mt-1 text-xs text-slate-500">{item.autorNome ?? 'Autor cadastrado'} {item.autorRegistro && ' · ' + item.autorRegistro} · {new Date(item.finalizadaEm ?? item.criadaEm).toLocaleString('pt-BR')}</p>
           <p className="mt-3 whitespace-pre-wrap break-words text-sm">{item.texto}</p>
           {item.situacao === 'RASCUNHO' && item.autorId === prontuario.usuarioId && prontuario.paciente.ativo && <button disabled={ocupado} className="mt-3 text-sm text-[#2b668f] underline" onClick={() => {setEdicao(item);setTipo(item.tipo);setTexto(item.texto)}}>Editar rascunho</button>}

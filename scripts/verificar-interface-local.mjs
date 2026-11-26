@@ -54,11 +54,11 @@ try{
  await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true})})
  await cdp('Page.enable')
  await carregar('/','input[type=email]')
- await esperar(()=>avaliar('!!document.querySelector(".m-login-form button:not(:disabled)")'),'login disponível')
+ await esperar(()=>avaliar('!!document.querySelector(".m-login-form button[type=submit]:not(:disabled)")'),'login disponível')
  await preencher('input[type=email]',email)
  await preencher('input[type=password]',senha)
  await aguardar(250)
- await avaliar('document.querySelector(".m-login-form button").click()')
+ await avaliar('document.querySelector(".m-login-form button[type=submit]").click()')
  await esperar(()=>avaliar('!!document.querySelector(".m-sidebar") && !!document.querySelector(".m-metric")'),'login e painel')
  await aguardarTexto('Um bom dia para cuidar de pessoas.')
  const resumo=await avaliar("fetch('/api/sistema/painel/resumo').then(async r=>({status:r.status,dados:(await r.json()).dados}))")
@@ -81,12 +81,33 @@ try{
   ['/sistema/servicos','Serviços e procedimentos','.m-section-head'],
   ['/sistema/agenda','Agenda de atendimentos','.fc'],
   ['/sistema/formularios','Formulários e pré-consulta','.m-section-head'],
-  ['/sistema/financeiro?aba=Planos','Novo plano ou pacote','.m-section-head'],
+  ['/sistema/financeiro?aba=Planos','Contratos de pacientes','.m-section-head'],
   ['/sistema/financeiro?aba=Configura%C3%A7%C3%B5es','Dados da clínica','.m-section-head'],
   ['/sistema/prontuario','Gestão de acessos clínicos','.m-section-head'],
   ['/sistema/comunicacao','Fila de mensagens','.m-section-head']
  ]
- for(const [rota,titulo,selector] of paginas){await carregar(rota,selector);await aguardarTexto(titulo);assert.ok(await avaliar('!!document.querySelector(".m-sidebar")'));console.log('OK '+rota)}
+ await avaliar('document.querySelector(".m-profile-panel button[aria-label=\\"Fechar perfil\\"]")?.click()')
+ for(const [rota,titulo,selector] of paginas){
+  const navegou=await avaliar('(()=>{const l=[...document.querySelectorAll(".m-sidebar a")].find(a=>decodeURI(a.getAttribute("href"))===decodeURI('+JSON.stringify(rota)+'));if(!l)return false;l.click();return true})()')
+  assert.ok(navegou,'Link no menu: '+rota)
+  await aguardarTexto(titulo)
+  await esperar(()=>avaliar('document.querySelector('+JSON.stringify(selector)+')!==null'),rota)
+  assert.ok(await avaliar('!!document.querySelector(".m-sidebar")'))
+  console.log('OK '+rota)
+ }
+ await avaliar('document.querySelector(".m-sidebar a[href=\\"/sistema/pacientes\\"]").click()')
+ await aguardarTexto('Cadastro de pacientes')
+ await cdp('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:false})
+ await aguardar(400)
+ assert.equal(await avaliar('document.documentElement.scrollWidth<=innerWidth'),true)
+ await clicar('Adicionar paciente')
+ await esperar(()=>avaliar('!!document.querySelector("#form-paciente")'),'modal aberto')
+ await aguardar(200)
+ assert.equal(await avaliar('document.querySelector(".m-dialog").contains(document.activeElement)'),true)
+ await cdp('Input.dispatchKeyEvent',{type:'keyDown',key:'Escape',code:'Escape',windowsVirtualKeyCode:27})
+ await esperar(()=>avaliar('!document.querySelector("#form-paciente")'),'Escape fecha modal')
+ console.log('OK mobile e foco do modal')
+ await cdp('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false})
  await avaliar('document.querySelector("button[title=Sair]").click()')
  await aguardarTexto('Bem-vindo ao Instituto Muraro')
  assert.equal(await avaliar("fetch('/api/sistema/painel/resumo').then(r=>r.status)"),401)

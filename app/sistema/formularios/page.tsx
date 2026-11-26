@@ -1,8 +1,9 @@
 'use client'
+import {usePerfilSessao} from '@/lib/sessao-interface'
 
 import { useEffect, useState, type FormEvent } from 'react'
 import Link from 'next/link'
-import {SectionHeader} from '@/components/physio/ui'
+import {SectionHeader,SearchFilter,Empty,Badge} from '@/components/physio/ui'
 
 type Pergunta = { id: string; rotulo: string; tipo: string; obrigatoria: boolean; opcoes?: string[] }
 type Modelo = { id: string; titulo: string; versao: number; revisao: number; situacao: string; servicoId: string | null; perguntas: Pergunta[]; modeloAnteriorId?: string | null }
@@ -22,8 +23,10 @@ async function api<T>(rota: string, metodo = 'GET', corpo?: object): Promise<T> 
 }
 const mensagem = (e:unknown) => e instanceof Error ? e.message : 'Falha na operação'
 export default function Formularios() {
-  const [perfil,setPerfil] = useState('')
+  const perfil=usePerfilSessao()
   const [agendamentoId,setAgendamentoId] = useState('')
+  const [buscaModelo,setBuscaModelo]=useState('')
+  const [filtroModelo,setFiltroModelo]=useState('')
   const [modelos,setModelos] = useState<Modelo[]>([])
   const [servicos,setServicos] = useState<Servico[]>([])
   const [atendimento,setAtendimento] = useState<Atendimento|null>(null)
@@ -51,10 +54,7 @@ export default function Formularios() {
   useEffect(()=>{
     const id = new URLSearchParams(window.location.search).get('agendamento') || ''
     setAgendamentoId(id)
-    api<{dados:{perfil:string}}>('autenticacao/sessao').then(async r=>{
-      const p=r.dados.perfil;setPerfil(p)
-      if (p==='ADMINISTRADOR'||p==='RECEPCAO') {await carregar(p);await carregarLinks(id)}
-    }).catch(e=>setErro(mensagem(e)))
+    if (perfil==='ADMINISTRADOR'||perfil==='RECEPCAO') carregar(perfil).then(()=>carregarLinks(id)).catch(e=>setErro(mensagem(e)))
   },[])
   function editar(m:Modelo|null) {
     setEditando(m);setTitulo(m?.titulo??'');setServicoId(m?.servicoId??'');setPerguntas(m?.perguntas??[perguntaNova()]);setAberto(true);setErro('');setAviso('')
@@ -79,6 +79,7 @@ export default function Formularios() {
     },'Link individual gerado. Copie antes de sair desta tela.')
   }
   const publicados=modelos.filter(m=>m.situacao==='PUBLICADO'&&(!m.servicoId||m.servicoId===atendimento?.servico.id)&&!modelos.some(n=>n.modeloAnteriorId===m.id&&n.situacao==='PUBLICADO'))
+  const modelosVisiveis=modelos.filter(m=>(!filtroModelo||m.situacao===filtroModelo)&&m.titulo.toLocaleLowerCase("pt-BR").includes(buscaModelo.toLocaleLowerCase("pt-BR")))
   return <div className="m-modulo space-y-5">
     <SectionHeader eyebrow="FORMULÁRIOS" title="Formulários e pré-consulta" description="Modelos, versões e links individuais."/>
     {erro&&<p role="alert" className="rounded-lg bg-white p-3 text-red-700">{erro}</p>}{aviso&&<p role="status" className="rounded-lg bg-white p-3 text-green-800">{aviso}</p>}
@@ -97,7 +98,7 @@ export default function Formularios() {
     </section>}
     {perfil==='ADMINISTRADOR'&&<section className="space-y-4 m-card"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-xl font-semibold">Modelos e versões</h2><button className={botao} disabled={ocupado} onClick={()=>editar(null)}>Novo modelo</button></div>
       <p className="text-sm text-slate-600">Cadastre apenas perguntas validadas pela clínica. Modelos publicados não podem ser alterados: crie uma nova versão.</p>
-      <div className="divide-y">{modelos.map(m=><div key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><strong>{m.titulo}</strong><p className="text-sm text-slate-500">v{m.versao} · {m.situacao==='PUBLICADO'?'Publicado':'Rascunho'} · {m.perguntas.length} perguntas · {servicos.find(s=>s.id===m.servicoId)?.nome??'Geral'}</p></div><div className="flex flex-wrap gap-2">{m.situacao==='RASCUNHO'?<><button className={secundario} disabled={ocupado} onClick={()=>editar(m)}>Editar</button><button className={botao} disabled={ocupado} onClick={()=>{if(window.confirm('Publicar esta versão imutável?'))void executar(()=>api('formularios/modelos/'+m.id+'/publicar','POST',{revisao:m.revisao}),'Modelo publicado.')}}>Publicar</button></>:!modelos.some(n=>n.modeloAnteriorId===m.id)&&<button className={secundario} disabled={ocupado} onClick={()=>executar(()=>api('formularios/modelos/'+m.id+'/versao','POST',{}),'Nova versão criada como rascunho.')}>Nova versão</button>}</div></div>)}</div>
+      <SearchFilter search={buscaModelo} setSearch={setBuscaModelo} filter={filtroModelo} setFilter={setFiltroModelo} options={[{label:"Todos os status",value:""},{label:"Publicados",value:"PUBLICADO"},{label:"Rascunhos",value:"RASCUNHO"}]} placeholder="Buscar modelo de formulário"/><div className="divide-y">{!modelosVisiveis.length&&<Empty title="Nenhum modelo encontrado" description="Altere os filtros ou crie um novo modelo."/>}{modelosVisiveis.map(m=><div key={m.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><strong>{m.titulo}</strong><p className="text-sm text-slate-500">v{m.versao} · <Badge tone={m.situacao==='PUBLICADO'?'green':'amber'}>{m.situacao==='PUBLICADO'?'Publicado':'Rascunho'}</Badge> · {m.perguntas.length} perguntas · {servicos.find(s=>s.id===m.servicoId)?.nome??'Geral'}</p></div><div className="flex flex-wrap gap-2">{m.situacao==='RASCUNHO'?<><button className={secundario} disabled={ocupado} onClick={()=>editar(m)}>Editar</button><button className={botao} disabled={ocupado} onClick={()=>{if(window.confirm('Publicar esta versão imutável?'))void executar(()=>api('formularios/modelos/'+m.id+'/publicar','POST',{revisao:m.revisao}),'Modelo publicado.')}}>Publicar</button></>:!modelos.some(n=>n.modeloAnteriorId===m.id)&&<button className={secundario} disabled={ocupado} onClick={()=>executar(()=>api('formularios/modelos/'+m.id+'/versao','POST',{}),'Nova versão criada como rascunho.')}>Nova versão</button>}</div></div>)}</div>
       {!modelos.length&&<p className="text-sm text-slate-500">Nenhum modelo cadastrado.</p>}
     </section>}
     {aberto&&<section className="m-card"><form onSubmit={salvar} className="space-y-4"><h2 className="text-xl font-semibold">{editando?'Editar modelo':'Novo modelo'}</h2>

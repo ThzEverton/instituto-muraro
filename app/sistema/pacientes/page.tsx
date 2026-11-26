@@ -1,4 +1,5 @@
 'use client'
+import {usePerfilSessao} from '@/lib/sessao-interface'
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Plus, Edit3, Eye, Archive, X, CalendarDays, WalletCards, MessageCircle } from 'lucide-react'
@@ -56,12 +57,13 @@ async function requisitar<T>(caminho: string, opcoes?: RequestInit): Promise<T> 
 }
 
 export default function Sistema() {
-  const [perfil, setPerfil] = useState('')
+  const perfil=usePerfilSessao()
   const [detalhe,setDetalhe]=useState<Paciente|null>(null)
   const [filtro,setFiltro]=useState('')
   const [total,setTotal]=useState(0)
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [busca, setBusca] = useState('')
+  const [limite,setLimite]=useState(10)
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
   const [formulario, setFormulario] = useState<Formulario>(formularioVazio)
@@ -71,7 +73,7 @@ export default function Sistema() {
   const [carregando, setCarregando] = useState(false)
 
   const carregar = useCallback(async (termo = busca, numero = pagina) => {
-    const parametros = new URLSearchParams({ pagina: String(numero), limite: '20' })
+    const parametros = new URLSearchParams({ pagina: String(numero), limite: String(limite) })
     if (filtro) parametros.set('ativo',filtro)
     if (termo.trim()) parametros.set('busca', termo.trim())
     const resposta = await requisitar<{
@@ -82,10 +84,10 @@ export default function Sistema() {
     setTotal(resposta.paginacao.totalRegistros)
     setDetalhe(d=>d?resposta.dados.find(p=>p.id===d.id)??null:null)
     setTotalPaginas(Math.max(1, resposta.paginacao.totalPaginas))
-  }, [busca, pagina, filtro])
+  }, [busca, pagina, filtro, limite])
 
   useEffect(()=>{
-    requisitar<{dados:{perfil:string}}>('autenticacao/sessao').then(r=>{setPerfil(r.dados.perfil)}).catch(e=>setErro(e.message))
+
     if(new URLSearchParams(window.location.search).get('novo')==='1')abrirNovo()
   },[])
   useEffect(()=>{
@@ -182,14 +184,14 @@ export default function Sistema() {
       <div className="m-module-intro"><div><h2>Cadastro de pacientes</h2><p>{total} registros encontrados</p></div></div>
       <SearchFilter search={busca} setSearch={v=>{setBusca(v);setPagina(1)}} filter={filtro} setFilter={v=>{setFiltro(v);setPagina(1)}} options={[{label:'Todos os status',value:''},{label:'Ativos',value:'true'},{label:'Inativos',value:'false'}]} placeholder="Buscar paciente por nome..."/>
       {erro&&!mostrarFormulario&&<ErrorNote message={erro}/>}
-      <Table<Paciente> rows={pacientes} pageSize={20} columns={[
+      <Table<Paciente> rows={pacientes} externa pageSize={20} columns={[
        {label:'Paciente',cell:p=><div className="m-name-cell"><span className="m-avatar">{iniciais(p.nomeCompleto)}</span><span><strong>{p.nomeCompleto}</strong><small>{p.email||'Sem e-mail cadastrado'}</small></span></div>},
        {label:'Contato',cell:p=><div className="m-two-line"><strong>{p.telefone||p.whatsapp||'—'}</strong><small>{p.endereco||'Cidade não informada'}</small></div>},
        {label:'Idade',cell:p=>patientAge(p.dataNascimento?.slice(0,10)??'')},
        {label:'Atendimento',cell:p=>p.formaAtendimento||'—'},
        {label:'Situação',cell:p=><Badge tone={p.ativo?'green':'red'}>{p.ativo?'Ativo':'Inativo'}</Badge>},
       ]} onRowClick={p=>setDetalhe(p)} actions={p=><><PillButton title="Ver perfil" onClick={()=>setDetalhe(p)}><Eye size={16}/></PillButton><PillButton title="Editar" onClick={()=>abrirEdicao(p)}><Edit3 size={17}/></PillButton><PillButton title={p.ativo?'Inativar':'Reativar'} variant={p.ativo?'danger':'success'} onClick={()=>alterarAtividade(p)}><Archive size={17}/></PillButton></>}/>
-      <div className="m-table-footer"><span>Página {pagina} de {totalPaginas}</span><div className="m-page-nav"><button disabled={pagina<=1} onClick={()=>setPagina(pagina-1)}>Anterior</button><button disabled={pagina>=totalPaginas} onClick={()=>setPagina(pagina+1)}>Próxima</button></div></div>
+      <div className="m-table-footer"><span>Página {pagina} de {totalPaginas} · {total} registros</span><label className="m-page-limit">Por página <select aria-label="Registros por página" value={limite} onChange={e=>{setLimite(Number(e.target.value));setPagina(1)}}>{[10,20,50].map(n=><option key={n} value={n}>{n}</option>)}</select></label><div className="m-page-nav m-page-nav-text"><button disabled={pagina<=1} onClick={()=>setPagina(pagina-1)}>Anterior</button><button disabled={pagina>=totalPaginas} onClick={()=>setPagina(pagina+1)}>Próxima</button></div></div>
     </section>
     {detalhe&&<div className="m-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setDetalhe(null)}}><section className="m-profile-panel" role="dialog" aria-modal="true" aria-label="Perfil administrativo">
       <header className="m-profile-top"><div className="m-profile-ident"><span className="m-avatar">{iniciais(detalhe.nomeCompleto)}</span><div><span className="m-eyebrow">CADASTRO ADMINISTRATIVO</span><h2>{detalhe.nomeCompleto}</h2><small>{patientAge(detalhe.dataNascimento?.slice(0,10)??'')} • {detalhe.formaAtendimento||'Não informado'}</small></div></div><button className="m-icon-btn" onClick={()=>setDetalhe(null)} aria-label="Fechar perfil"><X size={20}/></button></header>
