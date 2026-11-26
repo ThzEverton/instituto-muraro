@@ -1,7 +1,8 @@
+import { Prisma } from '@prisma/client'
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
-import { consultaAgenda, edicaoAgendamento, entradaAgendamento } from './agenda.validacao.js'
+import { consultaAgenda, consultaDisponibilidade, dataLocal, edicaoAgendamento, entradaAgendamento, entradaBloqueio } from './agenda.validacao.js'
 import { ConflitoAgenda, DadosAgendaInvalidos, verificarEGravarAgendamento } from './agenda.servico.js'
 
 const perfis = ['ADMINISTRADOR', 'RECEPCAO'] as const
@@ -13,6 +14,88 @@ function erroAgenda(erro: unknown, resposta: { code: (status: number) => { send:
 }
 
 export async function registrarRotasAgenda(aplicacao: FastifyInstance) {
+  aplicacao.get('/api/v1/agenda/disponibilidade', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
+    const resultado = consultaDisponibilidade.safeParse(requisicao.query)
+    if (!resultado.success) return resposta.code(400).send({ erro: 'Consulta inválida' })
+    const { profissionalId, servicoId, inicioEm } = resultado.data
+    const inicio = new Date(inicioEm)
+    const servico = await prisma.servico.findUnique({ where: { id: servicoId } })
+    const profissional = await prisma.profissional.findUnique({ where: { id: profissionalId } })
+    if (!servico?.ativo || !profissional?.ativo) return resposta.code(404).send({ erro: 'Profissional ou serviço indisponível' })
+    const fim = new Date(inicio.getTime() + servico.duracaoMinutos * 60_000)
+    const localInicio = dataLocal(inicio)
+    const localFim = dataLocal(fim)
+    const [vinculo, expedientes, bloqueios, agendamentos] = await Promise.all([
+      prisma.profissionalServico.findUnique({ where: { profissionalId_servicoId: { profissionalId, servicoId } } }),
+      prisma.expedienteProfissional.findMany({ where: { profissionalId, diaSemana: localInicio.diaSemana } }),
+      prisma.bloqueioAgenda.count({ where: { profissionalId, ativo: true, inicioEm: { lt: fim }, fimEm: { gt: inicio } } }),
+      prisma.agendamento.findMany({
+        where: { profissionalId, situacao: { in: ['AGENDADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO', 'EM_ATENDIMENTO'] }, inicioEm: { lt: fim }, fimEm: { gt: inicio } },
+        select: { servicoId: true },
+      }),
+    ])
+    const dentroDoExpediente = localInicio.data === localFim.data && expedientes.some((item) =>
+      item.inicioMinuto <= localInicio.minuto && item.fimMinuto >= localFim.minuto)
+    const compativel = agendamentos.every((item) => item.servicoId === servicoId)
+    const vagasRestantes = vinculo && dentroDoExpediente && !bloqueios && compativel ? Math.max(0, servico.capacidade - agendamentos.length) : 0
+    return { dados: { disponivel: vagasRestantes > 0, vagasRestantes } }
+  })
+
+  aplicacao.get('/api/v1/agenda/bloqueios', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
+    const resultado = consultaAgenda.safeParse(requisicao.query)
+    if (!resultado.success) return resposta.code(400).send({ erro: 'Período inválido' })
+    const { inicioEm, fimEm, profissionalId } = resultado.data
+    const dados = await prisma.bloqueioAgenda.findMany({
+      where: {
+        ativo: true, inicioEm: { lt: new Date(fimEm) }, fimEm: { gt: new Date(inicioEm) },
+        ...(profissionalId ? { profissionalId } : {}),
+      },
+      orderBy: { inicioEm: 'asc' },
+      take: 1000,
+    })
+    return { dados }
+  })
+
+  aplicacao.post('/api/v1/agenda/bloqueios', { preHandler: exigirPerfis([...perfis]) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const resultado = entradaBloqueio.safeParse(requisicao.body)
+    if (!resultado.success) return resposta.code(400).send({ erro: 'Dados do bloqueio inválidos' })
+    const { profissionalId, tipo } = resultado.data
+    const inicioEm = new Date(resultado.data.inicioEm)
+    const fimEm = new Date(resultado.data.fimEm)
+    const inicio = dataLocal(inicioEm)
+    if (inicio.data !== dataLocal(fimEm).data) return resposta.code(400).send({ erro: 'Bloqueio deve ocorrer em um único dia' })
+    try {
+      const bloqueio = await prisma.$transaction(async (transacao) => {
+        await transacao.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${profissionalId}), hashtext(${inicio.data}))::text`
+        const profissional = await transacao.profissional.findUnique({ where: { id: profissionalId }, select: { ativo: true } })
+        if (!profissional?.ativo) throw new DadosAgendaInvalidos('Profissional inexistente ou inativo')
+        const [outro, agendamento] = await Promise.all([
+          transacao.bloqueioAgenda.findFirst({ where: { profissionalId, ativo: true, inicioEm: { lt: fimEm }, fimEm: { gt: inicioEm } } }),
+          transacao.agendamento.findFirst({
+            where: { profissionalId, situacao: { in: ['AGENDADO', 'AGUARDANDO_CONFIRMACAO', 'CONFIRMADO', 'EM_ATENDIMENTO'] }, inicioEm: { lt: fimEm }, fimEm: { gt: inicioEm } },
+          }),
+        ])
+        if (outro || agendamento) throw new ConflitoAgenda('Horário ocupado')
+        const criado = await transacao.bloqueioAgenda.create({ data: { profissionalId, tipo, inicioEm, fimEm } })
+        await transacao.registroAuditoria.create({ data: { usuarioId: requisicao.identidade!.id, acao: 'BLOQUEAR', entidade: 'bloqueio_agenda', entidadeId: criado.id } })
+        return criado
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, timeout: 15000 })
+      return resposta.code(201).send({ dados: bloqueio })
+    } catch (erro) { return erroAgenda(erro, resposta) }
+  })
+
+  aplicacao.patch('/api/v1/agenda/bloqueios/:id', { preHandler: exigirPerfis([...perfis]) }, async (requisicao: RequisicaoAutenticada, resposta) => {
+    const { id } = requisicao.params as { id: string }
+    const bloqueio = await prisma.bloqueioAgenda.findUnique({ where: { id } })
+    if (!bloqueio || !bloqueio.ativo) return resposta.code(404).send({ erro: 'Bloqueio não encontrado' })
+    const alterado = await prisma.$transaction(async (transacao) => {
+      const atualizado = await transacao.bloqueioAgenda.update({ where: { id }, data: { ativo: false } })
+      await transacao.registroAuditoria.create({ data: { usuarioId: requisicao.identidade!.id, acao: 'DESBLOQUEAR', entidade: 'bloqueio_agenda', entidadeId: id } })
+      return atualizado
+    })
+    return { dados: alterado }
+  })
+
   aplicacao.get('/api/v1/agendamentos', { preHandler: exigirPerfis([...perfis]) }, async (requisicao, resposta) => {
     const resultado = consultaAgenda.safeParse(requisicao.query)
     if (!resultado.success) return resposta.code(400).send({ erro: 'Período inválido' })

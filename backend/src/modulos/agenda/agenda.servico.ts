@@ -52,6 +52,7 @@ export async function verificarEGravarAgendamento(
     const bloqueio = await transacao.bloqueioAgenda.findFirst({
       where: {
         profissionalId: dados.profissionalId,
+        ativo: true,
         inicioEm: { lt: dados.fimEm },
         fimEm: { gt: dados.inicioEm },
       },

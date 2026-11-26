@@ -136,6 +136,24 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect(respostas.filter((item) => item.statusCode === 409)).toHaveLength(1)
   })
 
+  it('bloqueia horario, consulta vagas e libera apos desbloqueio', async () => {
+    const aplicacao = await aplicacaoPromessa
+    const headers = { authorization: 'Bearer ' + tokenAdministrador }
+    const inicioEm = '2026-11-30T08:00:00-03:00'
+    const fimEm = '2026-11-30T08:50:00-03:00'
+    const url = '/api/v1/agenda/disponibilidade?' + new URLSearchParams({ profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda, inicioEm })
+    const consultar = () => aplicacao.inject({ method: 'GET', url, headers })
+    expect((await consultar()).json().dados).toEqual({ disponivel: true, vagasRestantes: 3 })
+    const criado = await aplicacao.inject({ method: 'POST', url: '/api/v1/agenda/bloqueios', headers, payload: { profissionalId: profissionalIdAgenda, inicioEm, fimEm, tipo: 'Teste sintetico' } })
+    expect(criado.statusCode).toBe(201)
+    expect((await consultar()).json().dados).toEqual({ disponivel: false, vagasRestantes: 0 })
+    const recusado = await aplicacao.inject({ method: 'POST', url: '/api/v1/agendamentos', headers, payload: { pacienteId, profissionalId: profissionalIdAgenda, servicoId: servicoIdAgenda, inicioEm, fimEm } })
+    expect(recusado.statusCode).toBe(409)
+    const id = criado.json().dados.id
+    expect((await aplicacao.inject({ method: 'PATCH', url: '/api/v1/agenda/bloqueios/' + id, headers })).statusCode).toBe(200)
+    expect((await consultar()).json().dados).toEqual({ disponivel: true, vagasRestantes: 3 })
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

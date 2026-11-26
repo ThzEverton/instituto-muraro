@@ -15,6 +15,7 @@ type Agendamento = {
   id: string; pacienteId: string; profissionalId: string; servicoId: string;
   inicioEm: string; fimEm: string; situacao: string;
 }
+type Bloqueio = { id: string; profissionalId: string; inicioEm: string; fimEm: string; tipo: string }
 type Formulario = { pacienteId: string; profissionalId: string; servicoId: string; inicioEm: string }
 
 async function api<T>(rota: string, opcoes?: RequestInit): Promise<T> {
@@ -36,6 +37,10 @@ export default function Agenda() {
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [servicos, setServicos] = useState<Servico[]>([])
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([])
+  const [bloqueios, setBloqueios] = useState<Bloqueio[]>([])
+  const [bloqueioAberto, setBloqueioAberto] = useState(false)
+  const [formBloqueio, setFormBloqueio] = useState({ profissionalId: '', inicioEm: '', fimEm: '', tipo: '' })
+  const [disponibilidade, setDisponibilidade] = useState<{ disponivel: boolean; vagasRestantes: number } | null>(null)
   const [intervalo, setIntervalo] = useState<{ inicio: string; fim: string } | null>(null)
   const [formulario, setFormulario] = useState<Formulario>({ pacienteId: '', profissionalId: '', servicoId: '', inicioEm: '' })
   const [selecionado, setSelecionado] = useState<Agendamento | null>(null)
@@ -58,18 +63,24 @@ export default function Agenda() {
     const parametros = new URLSearchParams({ inicioEm: periodo.inicio, fimEm: periodo.fim })
     if (profissionalId) parametros.set('profissionalId', profissionalId)
     const resultado = await api<{ dados: Agendamento[] }>(`agendamentos?${parametros}`)
+    const resultadoBloqueios = await api<{ dados: Bloqueio[] }>('agenda/bloqueios?' + parametros)
     setAgendamentos(resultado.dados)
+    setBloqueios(resultadoBloqueios.dados)
   }, [filtroProfissional])
   useEffect(() => { carregarCadastros().catch((falha) => setErro(falha.message)) }, [carregarCadastros])
   useEffect(() => { if (intervalo) carregarAgenda(intervalo).catch((falha) => setErro(falha.message)) }, [intervalo, filtroProfissional, carregarAgenda])
 
-  const eventos = useMemo(() => agendamentos.filter((item) => item.situacao !== 'CANCELADO').map((item) => ({
+  const eventos = useMemo(() => [...agendamentos.filter((item) => item.situacao !== 'CANCELADO').map((item) => ({
     id: item.id,
     title: `${pacientes.find((paciente) => paciente.id === item.pacienteId)?.nomeCompleto ?? 'Paciente'} · ${servicos.find((servico) => servico.id === item.servicoId)?.nome ?? 'Serviço'}`,
     start: item.inicioEm, end: item.fimEm,
     backgroundColor: profissionais.find((profissional) => profissional.id === item.profissionalId)?.corAgenda ?? '#2b668f',
     extendedProps: { situacao: item.situacao },
-  })), [agendamentos, pacientes, profissionais, servicos])
+  })), ...bloqueios.map((item) => ({
+    id: 'bloqueio:' + item.id, title: 'Bloqueado: ' + item.tipo,
+    start: item.inicioEm, end: item.fimEm, backgroundColor: '#64748b',
+    editable: false, extendedProps: { situacao: 'BLOQUEADO' },
+  }))], [agendamentos, bloqueios, pacientes, profissionais, servicos])
 
   function datasAlteradas(dados: DatesSetArg) {
     setIntervalo({ inicio: dados.start.toISOString(), fim: dados.end.toISOString() })
@@ -83,6 +94,11 @@ export default function Agenda() {
     setAberto(true); setErro('')
   }
   function clicarEvento(dados: EventClickArg) {
+    if (dados.event.id.startsWith('bloqueio:')) {
+      const item = bloqueios.find((b) => b.id === dados.event.id.slice(8))
+      if (item && window.confirm('Remover bloqueio: ' + item.tipo + '?')) void desbloquear(item.id)
+      return
+    }
     const agendamento = agendamentos.find((item) => item.id === dados.event.id)
     if (!agendamento) return
     setSelecionado(agendamento)
@@ -92,6 +108,37 @@ export default function Agenda() {
     })
     setAberto(true); setErro('')
   }
+  async function desbloquear(id: string) {
+    setErro('')
+    try {
+      await api('agenda/bloqueios/' + id, { method: 'PATCH' })
+      if (intervalo) await carregarAgenda(intervalo)
+    } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao desbloquear') }
+  }
+  async function salvarBloqueio(evento: FormEvent) {
+    evento.preventDefault(); setErro(''); setCarregando(true)
+    try {
+      await api('agenda/bloqueios', { method: 'POST', body: JSON.stringify({
+        ...formBloqueio, inicioEm: new Date(formBloqueio.inicioEm).toISOString(),
+        fimEm: new Date(formBloqueio.fimEm).toISOString(),
+      }) })
+      setBloqueioAberto(false)
+      if (intervalo) await carregarAgenda(intervalo)
+    } catch (falha) { setErro(falha instanceof Error ? falha.message : 'Falha ao bloquear') }
+    finally { setCarregando(false) }
+  }
+  useEffect(() => {
+    setDisponibilidade(null)
+    if (!aberto || selecionado || !formulario.profissionalId || !formulario.servicoId || !formulario.inicioEm) return
+    let vigente = true
+    const inicio = new Date(formulario.inicioEm)
+    if (Number.isNaN(inicio.getTime())) return
+    const parametros = new URLSearchParams({ profissionalId: formulario.profissionalId, servicoId: formulario.servicoId, inicioEm: inicio.toISOString() })
+    api<{ dados: { disponivel: boolean; vagasRestantes: number } }>('agenda/disponibilidade?' + parametros)
+      .then((r) => { if (vigente) setDisponibilidade(r.dados) })
+      .catch(() => { if (vigente) setDisponibilidade(null) })
+    return () => { vigente = false }
+  }, [aberto, selecionado, formulario.profissionalId, formulario.servicoId, formulario.inicioEm])
   async function mover(dados: EventDropArg) {
     const inicio = dados.event.start
     const fim = dados.event.end
@@ -140,11 +187,25 @@ export default function Agenda() {
       <section className="rounded-2xl bg-white p-6 shadow-sm">
         <div className="mb-4 flex flex-wrap items-center gap-3"><label className="text-sm">Profissional <select className="ml-2 rounded-lg border border-slate-300 px-3 py-2" value={filtroProfissional} onChange={(evento) => setFiltroProfissional(evento.target.value)}><option value="">Todos</option>{profissionais.map((profissional) => <option value={profissional.id} key={profissional.id}>{profissional.nome}</option>)}</select></label></div>
         {erro && <p role="alert" className="mb-4 text-sm text-red-700">{erro}</p>}
+        <button type="button" className="mb-4 rounded-lg border border-slate-300 px-4 py-2 text-sm" onClick={() => {
+          setErro(''); setFormBloqueio({ profissionalId: filtroProfissional || profissionais[0]?.id || '', inicioEm: '', fimEm: '', tipo: '' }); setBloqueioAberto(true)
+        }}>Bloquear horário</button>
         <FullCalendar plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]} initialView="timeGridWeek" locale="pt-br"
           headerToolbar={{ left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' }}
           allDaySlot={false} selectable editable events={eventos} datesSet={datasAlteradas}
           select={selecionar} eventClick={clicarEvento} eventDrop={mover} height="auto" />
       </section>
+      {bloqueioAberto && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+        <form onSubmit={salvarBloqueio} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
+          <h2 className="text-xl font-semibold">Bloquear horário</h2>
+          <label className="block text-sm">Profissional<select required className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.profissionalId} onChange={(e) => setFormBloqueio(a => ({ ...a, profissionalId: e.target.value }))}><option value="">Selecione</option>{profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></label>
+          <label className="block text-sm">Início<input required type="datetime-local" className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.inicioEm} onChange={e => setFormBloqueio(a => ({ ...a, inicioEm: e.target.value }))} /></label>
+          <label className="block text-sm">Fim<input required type="datetime-local" className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.fimEm} onChange={e => setFormBloqueio(a => ({ ...a, fimEm: e.target.value }))} /></label>
+          <label className="block text-sm">Motivo<input required minLength={2} maxLength={100} className="mt-1 w-full rounded-lg border p-2" value={formBloqueio.tipo} onChange={e => setFormBloqueio(a => ({ ...a, tipo: e.target.value }))} /></label>
+          {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+          <div className="flex justify-end gap-3"><button type="button" onClick={() => setBloqueioAberto(false)} className="rounded-lg border px-4 py-2">Fechar</button><button disabled={carregando} className="rounded-lg bg-[#142b49] px-4 py-2 text-white disabled:opacity-50">Bloquear</button></div>
+        </form>
+      </div>}
       {aberto && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4"><form onSubmit={salvar} className="w-full max-w-lg space-y-4 rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-semibold">{selecionado ? 'Atendimento' : 'Novo atendimento'}</h2>
         <label className="block text-sm">Paciente<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.pacienteId} onChange={(evento) => setFormulario((atual) => ({ ...atual, pacienteId: evento.target.value }))}><option value="">Selecione</option>{pacientes.map((paciente) => <option value={paciente.id} key={paciente.id}>{paciente.nomeCompleto}</option>)}</select></label>
@@ -152,13 +213,14 @@ export default function Agenda() {
         <label className="block text-sm">Serviço<select required className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.servicoId} onChange={(evento) => setFormulario((atual) => ({ ...atual, servicoId: evento.target.value }))}><option value="">Selecione</option>{servicosDisponiveis.map((servico) => <option value={servico.id} key={servico.id}>{servico.nome} · {servico.duracaoMinutos} min</option>)}</select></label>
         <label className="block text-sm">Início<input required type="datetime-local" className="mt-1 w-full rounded-lg border border-slate-300 p-2" value={formulario.inicioEm} onChange={(evento) => setFormulario((atual) => ({ ...atual, inicioEm: evento.target.value }))} /></label>
         {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
+        {!selecionado && disponibilidade && <p role="status" className={disponibilidade.disponivel ? 'text-sm text-green-700' : 'text-sm text-red-700'}>{disponibilidade.disponivel ? disponibilidade.vagasRestantes + ' vaga(s) disponível(is)' : 'Horário indisponível'}</p>}
         {selecionado && <div className="flex flex-wrap gap-2 border-t pt-4 text-sm">
           <button type="button" onClick={() => mudarSituacao('CONFIRMADO')} className="rounded-lg border border-slate-300 px-3 py-2">Confirmar</button>
           <button type="button" onClick={() => mudarSituacao('CONCLUIDO')} className="rounded-lg border border-slate-300 px-3 py-2">Concluir</button>
           <button type="button" onClick={() => mudarSituacao('NAO_COMPARECEU')} className="rounded-lg border border-slate-300 px-3 py-2">Falta</button>
           <button type="button" onClick={() => mudarSituacao('CANCELADO')} className="rounded-lg border border-red-300 px-3 py-2 text-red-700">Cancelar</button>
         </div>}
-        <div className="flex justify-end gap-3"><button type="button" onClick={() => setAberto(false)} className="rounded-lg border border-slate-300 px-4 py-2">Fechar</button><button disabled={carregando} className="rounded-lg bg-[#142b49] px-4 py-2 text-white disabled:opacity-50">Salvar</button></div>
+        <div className="flex justify-end gap-3"><button type="button" onClick={() => setAberto(false)} className="rounded-lg border border-slate-300 px-4 py-2">Fechar</button><button disabled={carregando || (!selecionado && disponibilidade?.disponivel === false)} className="rounded-lg bg-[#142b49] px-4 py-2 text-white disabled:opacity-50">Salvar</button></div>
       </form></div>}
     </div>
   </main>

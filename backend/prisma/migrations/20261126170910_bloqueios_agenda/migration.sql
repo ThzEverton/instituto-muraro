@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "bloqueios_agenda" ADD COLUMN     "ativo" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "criado_em" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

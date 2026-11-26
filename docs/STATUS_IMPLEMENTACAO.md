@@ -45,3 +45,10 @@ Próxima tarefa de código: completar bloqueios/recorrência/capacidade por loca
 ## Bloqueios externos
 
 Conteúdo clínico de fisioterapia pélvica, regras comerciais de desconto/comissão, critérios contábeis e aceite operacional dependem da clínica. Hospedagem e credenciais de integração seguem indefinidas. Trabalho local independente pode continuar.
+
+
+## Retomada via Desktop Commander — 26/11/2026
+
+Concluídos os bloqueios manuais de um dia por profissional, desbloqueio pela agenda, visualização dos bloqueios, consulta de disponibilidade e contagem de vagas. A API usa a mesma trava transacional dos agendamentos e registra auditoria. Migração conferida no PostgreSQL local isolado (porta 5433). Todos os 13 testes passaram, incluindo bloqueio, recusa de agendamento e liberação de vagas; tipagem e builds passaram. A interface ainda requer homologação visual.
+
+Próximos blocos: recorrência, locais e capacidade por local, feriados/férias; prontuário e autorização por vínculo profissional-paciente. Não há deploy nem alteração de hospedagem.

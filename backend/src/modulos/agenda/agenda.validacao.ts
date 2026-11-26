@@ -37,3 +37,17 @@ export function dataLocal(data: Date, fuso = 'America/Sao_Paulo') {
     minuto: Number(campo('hour')) * 60 + Number(campo('minute')),
   }
 }
+
+export const entradaBloqueio = z.object({
+  profissionalId: z.string().min(1),
+  inicioEm: z.iso.datetime({ offset: true }),
+  fimEm: z.iso.datetime({ offset: true }),
+  tipo: z.string().trim().min(2).max(100),
+  recorrente: z.literal(false).optional(),
+}).strict().refine((dados) => new Date(dados.fimEm) > new Date(dados.inicioEm), 'Intervalo inválido')
+
+export const consultaDisponibilidade = z.object({
+  profissionalId: z.string().min(1),
+  servicoId: z.string().min(1),
+  inicioEm: z.iso.datetime({ offset: true }),
+})
