@@ -8,9 +8,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "backend:dev": "corepack pnpm --dir backend dev",
-    "backend:build": "corepack pnpm --dir backend build",
-    "backend:test": "corepack pnpm --dir backend test"
+    "backend:dev": "pnpm --dir backend dev",
+    "backend:build": "pnpm --dir backend build",
+    "backend:test": "pnpm --dir backend test"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
@@ -42,7 +42,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
-    "prisma": "8.0.0-rc.26",
+    "prisma": "7.10.1",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "5.7.3",
