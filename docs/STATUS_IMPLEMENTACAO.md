@@ -34,6 +34,14 @@ A migração inicial foi aplicada **somente** ao PostgreSQL sintético isolado e
 
 Próxima tarefa: completar responsáveis e histórico de paciente; vincular profissionais e serviços; implementar recuperação de senha, acesso clínico por vínculo e proteção de anexos. Depois migrar as demais telas do protótipo para a API.
 
+## Cadastros e agenda — continuação
+
+Foram implementados os cadastros operacionais de profissionais e serviços, com vínculo persistente, expediente semanal, capacidade, edição/inativação e auditoria. A agenda nova em `/sistema/agenda` usa FullCalendar com visualizações diária, semanal e mensal. O servidor valida expediente, habilitação do serviço, duração, bloqueios, conflitos e capacidade. Gravações do mesmo profissional e dia são serializadas por trava transacional no PostgreSQL.
+
+Ainda faltam bloqueios pela interface, recorrência, locais, feriados, férias, confirmação pública e políticas completas de vínculo clínico. A agenda permanece **parcialmente implementada**. Os cadastros FB02/FB03 também permanecem parciais pelos campos e regras ainda ausentes.
+
+Próxima tarefa de código: completar bloqueios/recorrência/capacidade por local, depois prontuário com vínculo profissional-paciente. A integração do protótipo antigo com as rotas novas continua pendente.
+
 ## Bloqueios externos
 
 Conteúdo clínico de fisioterapia pélvica, regras comerciais de desconto/comissão, critérios contábeis e aceite operacional dependem da clínica. Hospedagem e credenciais de integração seguem indefinidas. Trabalho local independente pode continuar.

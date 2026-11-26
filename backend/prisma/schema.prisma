@@ -100,6 +100,8 @@ model Profissional {
   ativo         Boolean         @default(true)
   agendamentos  Agendamento[]
   bloqueios     BloqueioAgenda[]
+  servicos      ProfissionalServico[]
+  expedientes   ExpedienteProfissional[]
 
   @@map("profissionais")
 }
@@ -114,8 +116,31 @@ model Servico {
   capacidade     Int            @default(1)
   ativo          Boolean        @default(true)
   agendamentos   Agendamento[]
+  profissionais ProfissionalServico[]
 
   @@map("servicos")
+}
+
+model ProfissionalServico {
+  profissionalId String       @map("profissional_id")
+  servicoId      String       @map("servico_id")
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+  servico        Servico      @relation(fields: [servicoId], references: [id], onDelete: Restrict)
+
+  @@id([profissionalId, servicoId])
+  @@map("profissionais_servicos")
+}
+
+model ExpedienteProfissional {
+  id             String       @id @default(cuid())
+  profissionalId String       @map("profissional_id")
+  diaSemana      Int          @map("dia_semana")
+  inicioMinuto   Int          @map("inicio_minuto")
+  fimMinuto      Int          @map("fim_minuto")
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+
+  @@index([profissionalId, diaSemana])
+  @@map("expedientes_profissional")
 }
 
 model Agendamento {

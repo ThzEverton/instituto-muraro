@@ -7,6 +7,9 @@ import { Prisma } from '@prisma/client'
 import { prisma } from './infraestrutura/banco-de-dados/prisma.js'
 import { registrarRotasAutenticacao } from './modulos/autenticacao/autenticacao.rotas.js'
 import { registrarRotasPacientes } from './modulos/pacientes/pacientes.rotas.js'
+import { registrarRotasProfissionais } from './modulos/profissionais/profissionais.rotas.js'
+import { registrarRotasServicos } from './modulos/servicos/servicos.rotas.js'
+import { registrarRotasAgenda } from './modulos/agenda/agenda.rotas.js'
 
 export async function criarAplicacao() {
   const aplicacao = Fastify({ logger: { redact: ['req.headers.authorization', 'req.body.senha'] } })
@@ -36,6 +39,9 @@ export async function criarAplicacao() {
   })
   await registrarRotasAutenticacao(aplicacao)
   await registrarRotasPacientes(aplicacao)
+  await registrarRotasProfissionais(aplicacao)
+  await registrarRotasServicos(aplicacao)
+  await registrarRotasAgenda(aplicacao)
   aplicacao.addHook('onClose', async () => prisma.$disconnect())
   return aplicacao
 }

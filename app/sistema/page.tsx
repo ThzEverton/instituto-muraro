@@ -200,6 +200,8 @@ export default function Sistema() {
             <h1 className="text-3xl font-semibold">Pacientes</h1>
           </div>
           <div className="flex gap-3">
+            {autenticado && <Link href="/sistema/agenda" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Agenda</Link>}
+            {autenticado && <Link href="/sistema/cadastros" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Profissionais e serviços</Link>}
             <Link href="/" className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm"><ArrowLeft size={16} /> Voltar</Link>
             {autenticado && <button onClick={sair} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm"><LogOut size={16} /> Sair</button>}
           </div>

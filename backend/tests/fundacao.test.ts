@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { criarHashSenha, verificarSenha } from '../src/compartilhado/seguranca/senhas.js'
 import { cadastroPaciente, consultaPacientes } from '../src/modulos/pacientes/pacientes.validacao.js'
+import { cadastroProfissional } from '../src/modulos/profissionais/profissionais.validacao.js'
+import { cadastroServico } from '../src/modulos/servicos/servicos.validacao.js'
 
 describe('fundação em português', () => {
   it('gera hash com sal e valida a senha sem guardar texto puro', async () => {
@@ -23,5 +25,18 @@ describe('fundação em português', () => {
   it('limita paginação de pacientes', () => {
     expect(consultaPacientes.parse({ pagina: '2', limite: '20' })).toMatchObject({ pagina: 2, limite: 20 })
     expect(consultaPacientes.safeParse({ limite: '1000' }).success).toBe(false)
+  })
+
+  it('rejeita expediente sobreposto e capacidade inválida', () => {
+    expect(cadastroProfissional.safeParse({
+      nome: 'Profissional Sintético', especialidade: 'Fisioterapia',
+      expedientes: [
+        { diaSemana: 1, inicioMinuto: 480, fimMinuto: 720 },
+        { diaSemana: 1, inicioMinuto: 700, fimMinuto: 900 },
+      ],
+    }).success).toBe(false)
+    expect(cadastroServico.safeParse({
+      nome: 'Pilates Sintético', duracaoMinutos: 50, valorCentavos: 10000, capacidade: 0,
+    }).success).toBe(false)
   })
 })

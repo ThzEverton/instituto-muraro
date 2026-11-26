@@ -21,3 +21,13 @@ Não foram executados testes com PostgreSQL, Playwright, restauração ou opera�
 - `corepack pnpm build`: passou após atualizar Next.js de 16.4.3 para 16.4.6. A versão antiga interrompia o build com aviso de vulnerabilidade.
 
 Não houve teste de navegador nem restauração de backup. O PostgreSQL utilizado contém somente dados sintéticos criados pelos testes.
+
+## Cadastros e agenda
+
+- Migração `20261126170245_profissionais_servicos` aplicada somente ao PostgreSQL local isolado.
+- Teste de integração validou profissional, serviço, vínculo e controle de acesso; teste unitário rejeitou expediente sobreposto e capacidade inválida.
+- Teste de quatro agendamentos simultâneos para capacidade três: três respostas 201 e uma 409, após ajuste de isolamento da transação. O primeiro ensaio falhou com conflitos de serialização e foi corrigido; o ensaio repetido passou.
+- Total do último ensaio: 3 arquivos e 12 testes passaram.
+- Build do backend e build do Next.js passaram com a nova página de agenda.
+
+Não houve teste visual da interface em navegador nem simulação de operações em múltiplos processos.

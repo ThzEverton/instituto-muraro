@@ -13,6 +13,8 @@ descrever('persistência PostgreSQL e permissões', () => {
   let tokenAdministrador = ''
   let tokenFisioterapeuta = ''
   let pacienteId = ''
+  let profissionalIdAgenda = ''
+  let servicoIdAgenda = ''
 
   afterAll(async () => {
     const aplicacao = await aplicacaoPromessa
@@ -71,6 +73,67 @@ descrever('persistência PostgreSQL e permissões', () => {
     pacienteId = criado.json().dados.id
     const banco = await prisma.paciente.findUnique({ where: { id: pacienteId } })
     expect(banco?.nomeCompleto).toContain('Paciente Sintético')
+  })
+
+  it('persiste profissionais, serviços, capacidade e vínculo entre eles', async () => {
+    const aplicacao = await aplicacaoPromessa
+    const cabecalhos = { authorization: `Bearer ${tokenAdministrador}` }
+    const profissional = await aplicacao.inject({
+      method: 'POST', url: '/api/v1/profissionais', headers: cabecalhos,
+      payload: {
+        nome: 'Profissional Sintético',
+        especialidade: 'Fisioterapia',
+        expedientes: [{ diaSemana: 1, inicioMinuto: 480, fimMinuto: 720 }],
+      },
+    })
+    expect(profissional.statusCode).toBe(201)
+    const profissionalId = profissional.json().dados.id
+    profissionalIdAgenda = profissionalId
+    const servico = await aplicacao.inject({
+      method: 'POST', url: '/api/v1/servicos', headers: cabecalhos,
+      payload: {
+        nome: 'Sessão Sintética', duracaoMinutos: 50, valorCentavos: 10000,
+        capacidade: 3, profissionaisIds: [profissionalId],
+      },
+    })
+    expect(servico.statusCode).toBe(201)
+    const servicoId = servico.json().dados.id
+    servicoIdAgenda = servicoId
+    expect(servico.json().dados.capacidade).toBe(3)
+    expect(await prisma.profissionalServico.count({
+      where: { profissionalId, servicoId },
+    })).toBe(1)
+    const atualizado = await aplicacao.inject({
+      method: 'PATCH', url: `/api/v1/profissionais/${profissionalId}`,
+      headers: cabecalhos, payload: { servicosIds: [servicoId] },
+    })
+    expect(atualizado.statusCode).toBe(200)
+    expect(atualizado.json().dados.servicos).toHaveLength(1)
+    const negado = await aplicacao.inject({
+      method: 'POST', url: '/api/v1/servicos',
+      headers: { authorization: `Bearer ${tokenFisioterapeuta}` },
+      payload: { nome: 'Bloqueado', duracaoMinutos: 50, valorCentavos: 1000 },
+    })
+    expect(negado.statusCode).toBe(403)
+  })
+
+  it('respeita a capacidade com agendamentos simultâneos', async () => {
+    const aplicacao = await aplicacaoPromessa
+    const pacientes = await Promise.all(Array.from({ length: 4 }, (_, indice) =>
+      prisma.paciente.create({ data: { nomeCompleto: `Paciente Agenda ${sufixo} ${indice}` } })))
+    const respostas = await Promise.all(pacientes.map((paciente) => aplicacao.inject({
+      method: 'POST', url: '/api/v1/agendamentos',
+      headers: { authorization: `Bearer ${tokenAdministrador}` },
+      payload: {
+        pacienteId: paciente.id,
+        profissionalId: profissionalIdAgenda,
+        servicoId: servicoIdAgenda,
+        inicioEm: '2026-11-30T10:00:00-03:00',
+        fimEm: '2026-11-30T10:50:00-03:00',
+      },
+    })))
+    expect(respostas.filter((item) => item.statusCode === 201)).toHaveLength(3)
+    expect(respostas.filter((item) => item.statusCode === 409)).toHaveLength(1)
   })
 
   it('inativa sem apagar e revoga sessão no logout', async () => {
