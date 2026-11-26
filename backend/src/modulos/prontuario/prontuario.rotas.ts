@@ -1,19 +1,12 @@
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { Prisma } from '@prisma/client'
-import { z } from 'zod'
+import { vinculo, conta, associacao, entrada, edicao, consultaVinculos, consultaPacientesClinicos } from './prontuario.validacao.js'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
 import { criarHashSenha } from '../../compartilhado/seguranca/senhas.js'
 
 const administrador = exigirPerfis(['ADMINISTRADOR'])
 const clinico = exigirPerfis(['FISIOTERAPEUTA'])
-const identificador = z.string().min(1).max(100)
-const vinculo = z.object({ pacienteId: identificador, profissionalId: identificador, ativo: z.boolean() }).strict()
-const conta = z.object({ profissionalId: identificador, email: z.email().max(254), senha: z.string().min(12).max(128) }).strict()
-const associacao = z.object({ profissionalId: identificador, usuarioId: identificador }).strict()
-const tipos = z.enum(['ANAMNESE', 'AVALIACAO', 'EVOLUCAO', 'ADENDO'])
-const entrada = z.object({ tipo: tipos, texto: z.string().trim().min(1).max(30000) }).strict()
-const edicao = entrada.extend({ versao: z.number().int().positive(), finalizar: z.boolean().default(false) }).strict()
 class ErroClinico extends Error {
   constructor(public status: number, mensagem: string) { super(mensagem) }
 }
@@ -79,7 +72,7 @@ export async function registrarRotasProntuario(app: FastifyInstance) {
     } catch(e) { return tratar(e, res) }
   })
   app.get('/api/v1/clinica/vinculos', { preHandler: administrador }, async (req, res) => {
-    const v = z.object({ profissionalId: identificador }).safeParse(req.query)
+    const v = consultaVinculos.safeParse(req.query)
     if (!v.success) return res.code(400).send({ erro: 'Selecione o profissional' })
     return { dados: await prisma.vinculoClinico.findMany({ where: { profissionalId: v.data.profissionalId },
       select: { id: true, pacienteId: true, ativo: true, paciente: { select: { nomeCompleto: true } } }, orderBy: { paciente: { nomeCompleto: 'asc' } } }) }
@@ -101,7 +94,7 @@ export async function registrarRotasProntuario(app: FastifyInstance) {
     } catch(e) { return tratar(e, res) }
   })
   app.get('/api/v1/clinica/pacientes', { preHandler: clinico }, async (req: RequisicaoAutenticada, res) => {
-    const v = z.object({ busca: z.string().max(150).optional(), pagina: z.coerce.number().int().min(1).max(10000).default(1) }).safeParse(req.query)
+    const v = consultaPacientesClinicos.safeParse(req.query)
     if (!v.success) return res.code(400).send({ erro: 'Consulta invalida' })
     const where: Prisma.PacienteWhereInput = {
       vinculosClinicos: { some: { ativo: true, profissional: { usuarioId: req.identidade!.id, ativo: true } } },

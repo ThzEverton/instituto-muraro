@@ -1,10 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { FastifyInstance, FastifyReply } from 'fastify'
 import { Prisma } from '@prisma/client'
-import { z } from 'zod'
 import { prisma } from '../../infraestrutura/banco-de-dados/prisma.js'
 import { exigirPerfis, type RequisicaoAutenticada } from '../autenticacao/autenticacao.rotas.js'
-import { modelo, edicao, publicacao, emissao, consultaPublica, envioPublico, validarRespostas, perguntas, id } from './formularios.validacao.js'
+import { modelo, edicao, publicacao, emissao, consultaPublica, envioPublico, validarRespostas, perguntas, consultaModelos, consultaLinks } from './formularios.validacao.js'
 
 const admin = exigirPerfis(['ADMINISTRADOR'])
 const equipe = exigirPerfis(['ADMINISTRADOR', 'RECEPCAO'])
@@ -39,7 +38,7 @@ async function localizar(t: Prisma.TransactionClient, token: string) {
 
 export async function registrarRotasFormularios(app: FastifyInstance) {
   app.get('/api/v1/formularios/modelos', { preHandler: equipe }, async (req, res) => {
-    const q = z.object({ publicados: z.enum(['true','false']).default('true') }).safeParse(req.query)
+    const q = consultaModelos.safeParse(req.query)
     if (!q.success) return res.code(400).send({ erro: 'Consulta invalida' })
     if (q.data.publicados === 'false' && (req as RequisicaoAutenticada).identidade?.perfil !== 'ADMINISTRADOR') return res.code(403).send({ erro: 'Permissao insuficiente' })
     return { dados: await prisma.modeloFormulario.findMany({ where: q.data.publicados === 'true' ? { situacao: 'PUBLICADO' } : {}, orderBy: [{ titulo: 'asc' },{ versao: 'desc' }], take: 500 }) }
@@ -107,7 +106,7 @@ export async function registrarRotasFormularios(app: FastifyInstance) {
     } catch(e) { return tratar(e,res) }
   })
   app.get('/api/v1/formularios/links', { preHandler: equipe }, async (req,res) => {
-    const q = z.object({ agendamentoId: id }).safeParse(req.query)
+    const q = consultaLinks.safeParse(req.query)
     if (!q.success) return res.code(400).send({ erro: 'Selecione um atendimento' })
     const atendimento = await prisma.agendamento.findUnique({ where: { id: q.data.agendamentoId }, select: { id: true, inicioEm: true, paciente: { select: { nomeCompleto: true } }, servico: { select: { id: true, nome: true } } } })
     if (!atendimento) return res.code(404).send({ erro: 'Atendimento inexistente' })

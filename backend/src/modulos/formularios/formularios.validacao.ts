@@ -38,3 +38,6 @@ export function validarRespostas(definicao: unknown, valores: Record<string, str
   }
   return respostas
 }
+
+export const consultaModelos = z.object({ publicados: z.enum(['true','false']).default('true') })
+export const consultaLinks = z.object({ agendamentoId: id })

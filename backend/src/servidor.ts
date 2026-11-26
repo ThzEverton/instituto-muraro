@@ -14,6 +14,7 @@ import { registrarRotasAgenda } from './modulos/agenda/agenda.rotas.js'
 import { registrarRotasProntuario } from './modulos/prontuario/prontuario.rotas.js'
 
 import { registrarRotasFormularios } from './modulos/formularios/formularios.rotas.js'
+import { etiquetas, esquemaDocumentacao, rotasDocumentadas } from './infraestrutura/documentacao/openapi.js'
 
 export async function criarAplicacao() {
   const aplicacao = Fastify({ logger: { redact: ['req.headers.authorization', 'req.body.senha'] } })
@@ -21,8 +22,32 @@ export async function criarAplicacao() {
     origin: process.env.CORS_ORIGIN ? [process.env.CORS_ORIGIN] : false,
   })
   await aplicacao.register(rateLimit, { max: 100, timeWindow: '1 minute' })
-  await aplicacao.register(swagger, { openapi: { info: { title: 'Instituto Muraro API', version: '1.0.0' } } })
-  await aplicacao.register(swaggerUi, { routePrefix: '/docs' })
+  await aplicacao.register(swagger, {
+    openapi: {
+      openapi: '3.0.3',
+      info: { title: 'Instituto Muraro API', version: '1.0.0', description: 'API operacional do Instituto Muraro. Dados dos exemplos são fictícios. Autentique-se pela rota de login e utilize o token no botão Authorize. Respeite os perfis autorizados. Não utilize dados reais em ambiente de desenvolvimento.' },
+      tags: etiquetas,
+      components: { securitySchemes: { BearerToken: { type: 'http', scheme: 'bearer', bearerFormat: 'Token opaco', description: 'Token de sessão retornado pelo login. Não é JWT. Válido por oito horas.' } } },
+    },
+    transform: ({ schema, url, route }) => {
+      if (!url.startsWith('/api/v1/')) return { schema: { ...schema, hide: true }, url }
+      const metodo = Array.isArray(route.method) ? route.method[0] : route.method
+      if (metodo === 'HEAD') return { schema: { ...schema, hide: true }, url }
+      return { schema: esquemaDocumentacao(metodo, url), url }
+    },
+  })
+  // Exige documentação de cada nova operação, sem interferir na validação Zod ou serialização.
+  aplicacao.addHook('onRoute', rota => {
+    if (!rota.url.startsWith('/api/v1/')) return
+    const metodos = Array.isArray(rota.method) ? rota.method : [rota.method]
+    for (const metodo of metodos) {
+      if (metodo !== 'HEAD' && !rotasDocumentadas.has(metodo + ' ' + rota.url)) throw new Error('Rota sem documentação OpenAPI: ' + metodo + ' ' + rota.url)
+    }
+  })
+  // UI disponível por padrão localmente, desabilitada em produção salvo opção explícita.
+  if (process.env.NODE_ENV !== 'production' || process.env.SWAGGER_HABILITADO === 'true') {
+    await aplicacao.register(swaggerUi, { routePrefix: '/docs', uiConfig: { docExpansion: 'none', deepLinking: true, persistAuthorization: false } })
+  }
   aplicacao.setErrorHandler((erro, _requisicao, resposta) => {
     if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === 'P2002') {
       return resposta.code(409).send({ erro: 'Cadastro duplicado' })
