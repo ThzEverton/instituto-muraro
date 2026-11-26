@@ -45,6 +45,9 @@ export async function registrarRotasAutenticacao(aplicacao: FastifyInstance) {
     return { dados: { usuario: { id: usuario.id, nome: usuario.nome, perfil: usuario.perfil }, token, expiraEm } }
   })
 
+  aplicacao.get('/api/v1/autenticacao/sessao', { preHandler: exigirPerfis(['ADMINISTRADOR', 'RECEPCAO', 'FISIOTERAPEUTA']) }, async (req: RequisicaoAutenticada) => {
+    return { dados: req.identidade }
+  })
   aplicacao.post('/api/v1/autenticacao/sair', {
     preHandler: exigirPerfis(['ADMINISTRADOR', 'RECEPCAO', 'FISIOTERAPEUTA']),
   }, async (requisicao: RequisicaoAutenticada) => {

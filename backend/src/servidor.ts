@@ -11,6 +11,8 @@ import { registrarRotasProfissionais } from './modulos/profissionais/profissiona
 import { registrarRotasServicos } from './modulos/servicos/servicos.rotas.js'
 import { registrarRotasAgenda } from './modulos/agenda/agenda.rotas.js'
 
+import { registrarRotasProntuario } from './modulos/prontuario/prontuario.rotas.js'
+
 export async function criarAplicacao() {
   const aplicacao = Fastify({ logger: { redact: ['req.headers.authorization', 'req.body.senha'] } })
   await aplicacao.register(cors, {
@@ -42,6 +44,7 @@ export async function criarAplicacao() {
   await registrarRotasProfissionais(aplicacao)
   await registrarRotasServicos(aplicacao)
   await registrarRotasAgenda(aplicacao)
+  await registrarRotasProntuario(aplicacao)
   aplicacao.addHook('onClose', async () => prisma.$disconnect())
   return aplicacao
 }

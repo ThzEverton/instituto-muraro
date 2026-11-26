@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 
 function rotaPermitida(caminho: string, metodo: string): boolean {
   if (caminho === 'autenticacao/entrar') return metodo === 'POST'
+  if (caminho === 'autenticacao/sessao') return metodo === 'GET'
+  if (caminho === 'clinica/contas' || caminho === 'clinica/vinculos') return metodo === 'GET' || metodo === 'POST'
+  if (caminho === 'clinica/associacoes') return metodo === 'POST'
+  if (caminho === 'clinica/pacientes') return metodo === 'GET'
+  if (/^clinica\/pacientes\/[^/]+\/prontuario$/.test(caminho)) return metodo === 'GET' || metodo === 'POST'
+  if (/^clinica\/pacientes\/[^/]+\/prontuario\/[^/]+$/.test(caminho)) return metodo === 'PATCH'
   if (caminho === 'autenticacao/sair') return metodo === 'POST'
   if (caminho === 'saude') return metodo === 'GET'
   if (caminho === 'pacientes') return metodo === 'GET' || metodo === 'POST'
@@ -62,7 +68,7 @@ async function encaminhar(requisicao: NextRequest, contexto: { params: Promise<{
       return resposta
     }
     const resposta = NextResponse.json(corpo, { status: respostaApi.status })
-    if (caminho === 'autenticacao/sair') resposta.cookies.delete('muraro_sessao')
+    if (caminho === 'autenticacao/sair') resposta.cookies.set('muraro_sessao', '', { path: '/api/sistema', maxAge: 0, httpOnly: true })
     resposta.headers.set('Cache-Control', 'no-store')
     return resposta
   } catch {

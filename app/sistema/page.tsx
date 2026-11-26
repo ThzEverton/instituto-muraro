@@ -52,6 +52,7 @@ async function requisitar<T>(caminho: string, opcoes?: RequestInit): Promise<T> 
 }
 
 export default function Sistema() {
+  const [perfil, setPerfil] = useState('')
   const [autenticado, setAutenticado] = useState<boolean | null>(null)
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -77,9 +78,11 @@ export default function Sistema() {
   }, [busca, pagina])
 
   useEffect(() => {
-    requisitar('pacientes?limite=20')
-      .then((resposta) => {
-        const resultado = resposta as { dados: Paciente[]; paginacao: { totalPaginas: number } }
+    requisitar<{ dados: { perfil: string } }>('autenticacao/sessao')
+      .then(async (r) => {
+        setPerfil(r.dados.perfil)
+        if (r.dados.perfil === 'FISIOTERAPEUTA') { window.location.replace('/sistema/prontuario'); return }
+        const resultado = await requisitar<{ dados: Paciente[]; paginacao: { totalPaginas: number } }>('pacientes?limite=20')
         setPacientes(resultado.dados)
         setTotalPaginas(Math.max(1, resultado.paginacao.totalPaginas))
         setAutenticado(true)
@@ -92,10 +95,12 @@ export default function Sistema() {
     setErro('')
     setCarregando(true)
     try {
-      await requisitar('autenticacao/entrar', {
+      const sessao = await requisitar<{ dados: { usuario: { perfil: string } } }>('autenticacao/entrar', {
         method: 'POST', body: JSON.stringify({ email, senha }),
       })
       setSenha('')
+      setPerfil(sessao.dados.usuario.perfil)
+      if (sessao.dados.usuario.perfil === 'FISIOTERAPEUTA') { window.location.replace('/sistema/prontuario'); return }
       await carregar('', 1)
       setAutenticado(true)
     } catch (falha) {
@@ -200,6 +205,7 @@ export default function Sistema() {
             <h1 className="text-3xl font-semibold">Pacientes</h1>
           </div>
           <div className="flex gap-3">
+            {autenticado && perfil === "ADMINISTRADOR" && <Link href="/sistema/prontuario" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Acessos clínicos</Link>}
             {autenticado && <Link href="/sistema/agenda" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Agenda</Link>}
             {autenticado && <Link href="/sistema/cadastros" className="rounded-lg border border-slate-300 px-4 py-2 text-sm">Profissionais e serviços</Link>}
             <Link href="/" className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm"><ArrowLeft size={16} /> Voltar</Link>

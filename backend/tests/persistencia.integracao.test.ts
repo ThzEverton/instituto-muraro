@@ -196,6 +196,52 @@ descrever('persistência PostgreSQL e permissões', () => {
     expect((await consultar()).json().dados.disponivel).toBe(true)
   })
 
+  it('restringe prontuario a vinculos e protege registros finalizados', async () => {
+    const app = await aplicacaoPromessa
+    const admin = { authorization: 'Bearer ' + tokenAdministrador }
+    const fisio = { authorization: 'Bearer ' + tokenFisioterapeuta }
+    const usuario = await prisma.usuario.findUniqueOrThrow({ where: { email: 'fisio-' + sufixo + '@example.test' } })
+    const rota = '/api/v1/clinica/pacientes/' + pacienteId + '/prontuario'
+    expect((await app.inject({ method: 'GET', url: rota, headers: fisio })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'GET', url: rota, headers: admin })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'GET', url: rota })).statusCode).toBe(401)
+    const emailRecepcao = 'recepcao-' + sufixo + '@example.test'
+    await prisma.usuario.create({ data: { nome: 'Recepcao sintetica', email: emailRecepcao, senhaHash: await criarHashSenha(senha), perfil: 'RECEPCAO' } })
+    const loginRecepcao = await app.inject({ method: 'POST', url: '/api/v1/autenticacao/entrar', payload: { email: emailRecepcao, senha } })
+    expect(loginRecepcao.statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: rota, headers: { authorization: 'Bearer ' + loginRecepcao.json().dados.token } })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'POST', url: '/api/v1/clinica/associacoes', headers: admin, payload: { profissionalId: profissionalIdAgenda, usuarioId: usuario.id } })).statusCode).toBe(201)
+    const autorizar = (profissionalId: string, ativo: boolean) => app.inject({ method: 'POST', url: '/api/v1/clinica/vinculos', headers: admin, payload: { profissionalId, pacienteId, ativo } })
+    expect((await autorizar(profissionalIdAgenda, true)).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: '/api/v1/clinica/pacientes', headers: fisio })).json().dados.map((p: {id:string}) => p.id)).toContain(pacienteId)
+    const criado = await app.inject({ method: 'POST', url: rota, headers: fisio, payload: { tipo: 'ANAMNESE', texto: 'Registro sintetico sem dados clinicos reais' } })
+    expect(criado.statusCode).toBe(201)
+    const entrada = criado.json().dados
+    expect(entrada.situacao).toBe('RASCUNHO')
+    const outroProf = await prisma.profissional.create({ data: { nome: 'Outro clinico ' + sufixo, especialidade: 'Fisioterapia' } })
+    const email = 'outro-clinico-' + sufixo + '@example.test'
+    const novaConta = await app.inject({ method: 'POST', url: '/api/v1/clinica/contas', headers: admin, payload: { profissionalId: outroProf.id, email, senha } })
+    expect(novaConta.statusCode).toBe(201)
+    expect(novaConta.json().dados.senhaHash).toBeUndefined()
+    const login = await app.inject({ method: 'POST', url: '/api/v1/autenticacao/entrar', payload: { email, senha } })
+    expect(login.statusCode).toBe(200)
+    const outro = { authorization: 'Bearer ' + login.json().dados.token }
+    expect((await autorizar(outroProf.id, true)).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: rota, headers: outro })).json().dados.entradas).toHaveLength(0)
+    const payload = { tipo: 'ANAMNESE', texto: 'Registro revisado sintetico', versao: entrada.versao, finalizar: true }
+    const destino = rota + '/' + entrada.id
+    expect((await app.inject({ method: 'PATCH', url: destino, headers: outro, payload })).statusCode).toBe(404)
+    expect((await app.inject({ method: 'PATCH', url: destino, headers: fisio, payload })).statusCode).toBe(200)
+    expect((await app.inject({ method: 'PATCH', url: destino, headers: fisio, payload })).statusCode).toBe(409)
+    await expect(prisma.entradaProntuario.update({ where: { id: entrada.id }, data: { texto: 'Alteracao direta indevida' } })).rejects.toThrow()
+    await expect(prisma.entradaProntuario.delete({ where: { id: entrada.id } })).rejects.toThrow()
+    expect((await app.inject({ method: 'GET', url: rota, headers: outro })).json().dados.entradas[0].situacao).toBe('FINALIZADO')
+    expect((await autorizar(profissionalIdAgenda, false)).statusCode).toBe(200)
+    expect((await app.inject({ method: 'GET', url: rota, headers: fisio })).statusCode).toBe(403)
+    expect((await app.inject({ method: 'POST', url: rota, headers: fisio, payload: { tipo: 'EVOLUCAO', texto: 'Nao autorizado' } })).statusCode).toBe(403)
+    expect(await prisma.registroAuditoria.count({ where: { entidade: 'entrada_prontuario', entidadeId: entrada.id } })).toBe(2)
+  })
+
   it('inativa sem apagar e revoga sessão no logout', async () => {
     const aplicacao = await aplicacaoPromessa
     const alterado = await aplicacao.inject({

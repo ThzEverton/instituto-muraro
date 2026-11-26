@@ -48,6 +48,7 @@ model Usuario {
   atualizadoEm DateTime           @updatedAt @map("atualizado_em")
   sessoes      SessaoUsuario[]
   auditorias   RegistroAuditoria[]
+  profissional Profissional?
 
   @@map("usuarios")
 }
@@ -84,6 +85,7 @@ model Paciente {
   agendamentos                Agendamento[]
   prontuarios                 Prontuario[]
   cobrancas                   Cobranca[]
+  vinculosClinicos            VinculoClinico[]
 
   @@index([nomeCompleto])
   @@map("pacientes")
@@ -103,6 +105,9 @@ model Profissional {
   servicos      ProfissionalServico[]
   expedientes   ExpedienteProfissional[]
   ausencias     AusenciaAgenda[]
+  usuarioId     String? @unique @map("usuario_id")
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  vinculosClinicos VinculoClinico[]
 
   @@map("profissionais")
 }
@@ -250,6 +255,27 @@ model RespostaFormulario {
   @@map("respostas_formulario")
 }
 
+enum TipoEntradaClinica {
+  ANAMNESE
+  AVALIACAO
+  EVOLUCAO
+  ADENDO
+}
+
+model VinculoClinico {
+  id             String @id @default(cuid())
+  pacienteId     String @map("paciente_id")
+  profissionalId String @map("profissional_id")
+  ativo          Boolean @default(true)
+  criadoEm       DateTime @default(now()) @map("criado_em")
+  paciente       Paciente @relation(fields: [pacienteId], references: [id], onDelete: Restrict)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Restrict)
+
+  @@unique([pacienteId, profissionalId])
+  @@index([profissionalId, ativo])
+  @@map("vinculos_clinicos")
+}
+
 model Prontuario {
   id         String             @id @default(cuid())
   pacienteId String             @map("paciente_id")
@@ -267,6 +293,12 @@ model EntradaProntuario {
   prontuarioId String     @map("prontuario_id")
   autorId      String     @map("autor_id")
   texto        String
+  tipo         TipoEntradaClinica @default(EVOLUCAO)
+  situacao     SituacaoRegistro @default(RASCUNHO)
+  versao       Int @default(1)
+  autorNome    String? @map("autor_nome")
+  autorRegistro String? @map("autor_registro")
+  finalizadaEm DateTime? @map("finalizada_em")
   criadaEm     DateTime   @default(now()) @map("criada_em")
   prontuario   Prontuario @relation(fields: [prontuarioId], references: [id], onDelete: Restrict)
 
