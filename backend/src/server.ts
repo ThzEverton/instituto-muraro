@@ -5,6 +5,12 @@ import { z } from 'zod'
 import { db, make, overlaps, tokenPair } from './store.js'
 import { appointmentInput, blockInput, chargeInput, paymentInput, patientInput, professionalInput, serviceInput, templateInput, recordEntryInput } from './contracts.js'
 
+// A API ainda usa dados em memória e autenticação demonstrativa.
+// Impedir execução acidental como serviço clínico de produção.
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('Backend demonstrativo bloqueado em produção: implemente persistência e autenticação reais antes da implantação')
+}
+
 const app = Fastify({ logger: false })
 await app.register(swagger, { openapi: { info: { title: 'Instituto Muraro API', version: '1.0.0' }, tags: [{ name: 'auth' }, { name: 'clinical' }, { name: 'finance' }] } })
 await app.register(swaggerUi, { routePrefix: '/docs' })
